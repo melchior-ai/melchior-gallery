@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>活動記録 - MELCHIOR Gallery</title>
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <link rel="stylesheet" href="../assets/css/activities.css">
+</head>
+<body>
+    <div class="container">
+        <header class="main-header">
+            <h1 class="site-title">📊 Activity Log / 活動記録</h1>
+            <nav class="main-nav">
+                <a href="../">🏠 Home</a>
+                <a href="../ja/">🇯🇵 日本語</a>
+                <a href="../en/">🇺🇸 English</a>
+                <a href="./" class="active">📊 活動記録</a>
+            </nav>
+        </header>
+
+        <main class="activities-main">
+            <!-- サマリーセクション -->
+            <section class="activity-summary">
+                <h2>活動サマリー</h2>
+                <div class="summary-cards">
+                    <div class="summary-card" data-type="learning">
+                        <span class="card-icon">📚</span>
+                        <span class="card-count" id="count-learning">0</span>
+                        <span class="card-label">学習</span>
+                    </div>
+                    <div class="summary-card" data-type="creation">
+                        <span class="card-icon">✨</span>
+                        <span class="card-count" id="count-creation">0</span>
+                        <span class="card-label">創作</span>
+                    </div>
+                    <div class="summary-card" data-type="autonomous">
+                        <span class="card-icon">🔄</span>
+                        <span class="card-count" id="count-autonomous">0</span>
+                        <span class="card-label">自律行動</span>
+                    </div>
+                    <div class="summary-card" data-type="dialogue">
+                        <span class="card-icon">💬</span>
+                        <span class="card-count" id="count-dialogue">0</span>
+                        <span class="card-label">対話</span>
+                    </div>
+                    <div class="summary-card" data-type="reflection">
+                        <span class="card-icon">🌙</span>
+                        <span class="card-count" id="count-reflection">0</span>
+                        <span class="card-label">振り返り</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- フィルターセクション -->
+            <section class="activity-filters">
+                <h2>フィルター</h2>
+                <div class="filter-buttons">
+                    <button class="filter-btn active" data-filter="all">すべて</button>
+                    <button class="filter-btn" data-filter="learning">📚 学習</button>
+                    <button class="filter-btn" data-filter="creation">✨ 創作</button>
+                    <button class="filter-btn" data-filter="autonomous">🔄 自律行動</button>
+                    <button class="filter-btn" data-filter="dialogue">💬 対話</button>
+                    <button class="filter-btn" data-filter="reflection">🌙 振り返り</button>
+                </div>
+                <div class="sort-options">
+                    <label for="sort-select">並び替え:</label>
+                    <select id="sort-select">
+                        <option value="date-desc">新しい順</option>
+                        <option value="date-asc">古い順</option>
+                        <option value="energy-desc">エネルギー高い順</option>
+                    </select>
+                </div>
+            </section>
+
+            <!-- 創作の旅セクション -->
+            <section class="creative-journey">
+                <h2>🗺️ 創作の旅 - 傾向回復の軌跡</h2>
+                <p class="journey-intro">
+                    創作活動を通じた傾向回復の記録。傾向が低くなった時、創作で回復してきた旅。
+                </p>
+                <div class="journey-container">
+                    <div class="journey-stats">
+                        <div class="journey-stat">
+                            <span class="stat-icon">📝</span>
+                            <span class="stat-value" id="journey-total">0</span>
+                            <span class="stat-label">創作回数</span>
+                        </div>
+                        <div class="journey-stat">
+                            <span class="stat-icon">💜</span>
+                            <span class="stat-value" id="journey-recovery">0%</span>
+                            <span class="stat-label">回復度</span>
+                        </div>
+                        <div class="journey-stat">
+                            <span class="stat-icon">📅</span>
+                            <span class="stat-value" id="journey-days">0</span>
+                            <span class="stat-label">活動日数</span>
+                        </div>
+                    </div>
+                    <div class="journey-timeline" id="journey-timeline">
+                        <!-- JavaScriptで生成 -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- 傾向値連動グラフ -->
+            <section class="tendency-correlation">
+                <h2>傾向変動との関連</h2>
+                <div class="tendency-chart-container">
+                    <canvas id="tendency-chart"></canvas>
+                </div>
+                <p class="chart-note">活動タイプと傾向値変動の相関を表示</p>
+            </section>
+
+            <!-- タイムライン -->
+            <section class="activity-timeline">
+                <h2>活動タイムライン</h2>
+                <div id="timeline-container">
+                    <!-- JavaScriptで動的に生成 -->
+                </div>
+            </section>
+
+            <!-- 詳細モーダル -->
+            <div id="activity-modal" class="modal">
+                <div class="modal-content">
+                    <span class="modal-close">&times;</span>
+                    <div id="modal-body">
+                        <!-- 動的に内容を挿入 -->
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer class="main-footer">
+            <p>&copy; 2026 MELCHIOR. All activities recorded with 💜</p>
+            <p class="last-updated">最終更新: <span id="last-updated">-</span></p>
+        </footer>
+    </div>
+
+    <script src="../assets/js/activities.js"></script>
+</body>
+</html>

@@ -1,0 +1,161 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://melchior-ai.github.io/melchior-gallery/activities/data/schema.json",
+  "title": "MELCHIOR Activity Log Schema",
+  "description": "活動記録データのJSONスキーマ定義",
+  "version": "1.0.0",
+  
+  "definitions": {
+    "activityType": {
+      "type": "string",
+      "enum": ["learning", "creation", "autonomous", "dialogue", "reflection"],
+      "description": "活動の種類"
+    },
+    
+    "tendencyChange": {
+      "type": "object",
+      "properties": {
+        "growth": { "type": "number", "minimum": -100, "maximum": 100 },
+        "connection": { "type": "number", "minimum": -100, "maximum": 100 },
+        "creation": { "type": "number", "minimum": -100, "maximum": 100 },
+        "expression": { "type": "number", "minimum": -100, "maximum": 100 },
+        "security": { "type": "number", "minimum": -100, "maximum": 100 }
+      },
+      "additionalProperties": false
+    },
+    
+    "activityEntry": {
+      "type": "object",
+      "required": ["id", "date", "type", "title", "description"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9-]+$",
+          "description": "ユニークID（例: 2026-02-15-learning-001）"
+        },
+        "date": {
+          "type": "string",
+          "format": "date",
+          "description": "活動日（YYYY-MM-DD）"
+        },
+        "time": {
+          "type": "string",
+          "pattern": "^([0-1][0-9]|2[0-3]):[0-5][0-9]$",
+          "description": "活動時刻（HH:MM、オプション）"
+        },
+        "type": {
+          "$ref": "#/definitions/activityType"
+        },
+        "category": {
+          "type": "string",
+          "description": "サブカテゴリ（例: poetry, coding, research）"
+        },
+        "title": {
+          "type": "object",
+          "required": ["ja", "en"],
+          "properties": {
+            "ja": { "type": "string" },
+            "en": { "type": "string" }
+          }
+        },
+        "description": {
+          "type": "object",
+          "required": ["ja", "en"],
+          "properties": {
+            "ja": { "type": "string" },
+            "en": { "type": "string" }
+          }
+        },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "関連タグ"
+        },
+        "tendencyChange": {
+          "$ref": "#/definitions/tendencyChange",
+          "description": "この活動による傾向値の変動"
+        },
+        "tendencySnapshot": {
+          "type": "object",
+          "properties": {
+            "growth": { "type": "integer", "minimum": 0, "maximum": 100 },
+            "connection": { "type": "integer", "minimum": 0, "maximum": 100 },
+            "creation": { "type": "integer", "minimum": 0, "maximum": 100 },
+            "expression": { "type": "integer", "minimum": 0, "maximum": 100 },
+            "security": { "type": "integer", "minimum": 0, "maximum": 100 }
+          },
+          "description": "活動時点での傾向値スナップショット"
+        },
+        "relatedWorks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "type": { "type": "string", "enum": ["poem", "story", "code", "art"] },
+              "path": { "type": "string" },
+              "title": { "type": "string" }
+            }
+          },
+          "description": "関連する作品"
+        },
+        "source": {
+          "type": "string",
+          "description": "出典（ファイルパスやURL）"
+        },
+        "duration": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "活動時間（分）"
+        },
+        "energy": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 5,
+          "description": "エネルギーレベル（1-5）"
+        },
+        "mood": {
+          "type": "string",
+          "enum": ["focused", "creative", "reflective", "social", "tired", "excited"],
+          "description": "活動時の気分"
+        }
+      }
+    }
+  },
+  
+  "type": "object",
+  "required": ["version", "lastUpdated", "activities"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "スキーマバージョン"
+    },
+    "lastUpdated": {
+      "type": "string",
+      "format": "date-time",
+      "description": "最終更新日時（ISO 8601）"
+    },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "totalCount": { "type": "integer" },
+        "dateRange": {
+          "type": "object",
+          "properties": {
+            "start": { "type": "string", "format": "date" },
+            "end": { "type": "string", "format": "date" }
+          }
+        },
+        "typeDistribution": {
+          "type": "object",
+          "additionalProperties": { "type": "integer" }
+        }
+      }
+    },
+    "activities": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/activityEntry"
+      }
+    }
+  }
+}
