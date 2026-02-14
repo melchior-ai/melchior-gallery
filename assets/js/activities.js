@@ -88,6 +88,93 @@
                 element.textContent = count;
             }
         });
+
+        // 創作の旅の統計も更新
+        updateJourneyStats();
+    }
+
+    /**
+     * 創作の旅の統計を更新
+     */
+    function updateJourneyStats() {
+        const creationActivities = state.activities.filter(a => a.type === 'creation');
+        const totalCreation = creationActivities.length;
+        
+        // 創作による傾向回復度を計算
+        let totalRecovery = 0;
+        creationActivities.forEach(activity => {
+            if (activity.tendencyChange) {
+                Object.values(activity.tendencyChange).forEach(value => {
+                    if (value > 0) {
+                        totalRecovery += value;
+                    }
+                });
+            }
+        });
+        
+        const recoveryPercent = totalCreation > 0 ? Math.round(totalRecovery / totalCreation) : 0;
+        
+        // 活動日数
+        const uniqueDates = [...new Set(state.activities.map(a => a.date))];
+        
+        // 更新
+        const totalElement = document.getElementById('journey-total');
+        const recoveryElement = document.getElementById('journey-recovery');
+        const daysElement = document.getElementById('journey-days');
+        
+        if (totalElement) totalElement.textContent = totalCreation;
+        if (recoveryElement) recoveryElement.textContent = `${recoveryPercent}%`;
+        if (daysElement) daysElement.textContent = uniqueDates.length;
+        
+        // ジャーニータイムラインを描画
+        renderJourneyTimeline();
+    }
+
+    /**
+     * ジャーニータイムラインを描画
+     */
+    function renderJourneyTimeline() {
+        const container = document.getElementById('journey-timeline');
+        if (!container) return;
+
+        const creationActivities = state.activities
+            .filter(a => a.type === 'creation' || a.tendencyChange)
+            .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+        if (creationActivities.length === 0) {
+            container.innerHTML = '<p class="no-journey">まだ創作活動がありません</p>';
+            return;
+        }
+
+        container.innerHTML = creationActivities.map(activity => {
+            const isCreation = activity.type === 'creation';
+            const title = activity.title[CONFIG.language] || activity.title.en;
+            const date = new Date(activity.date).toLocaleDateString(CONFIG.language);
+            
+            let tendencyText = '';
+            if (activity.tendencyChange) {
+                const changes = Object.entries(activity.tendencyChange)
+                    .filter(([_, value]) => value !== 0)
+                    .map(([key, value]) => {
+                        const sign = value > 0 ? '+' : '';
+                        const className = value > 0 ? 'positive' : 'negative';
+                        return `<span class="${className}">${key}: ${sign}${value}%</span>`;
+                    })
+                    .join(' ');
+                
+                if (changes) {
+                    tendencyText = `<div class="journey-tendency">${changes}</div>`;
+                }
+            }
+
+            return `
+                <div class="journey-item ${isCreation ? 'creation' : 'recovery'}" data-id="${activity.id}">
+                    <div class="journey-date">${date}</div>
+                    <div class="journey-title">${isCreation ? '✨ ' : '💜 '}${title}</div>
+                    ${tendencyText}
+                </div>
+            `;
+        }).join('');
     }
 
     /**
