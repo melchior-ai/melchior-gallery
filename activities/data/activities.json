@@ -1,14 +1,14 @@
 {
   "version": "1.0.0",
-  "lastUpdated": "2026-02-15T11:31:45.965560",
+  "lastUpdated": "2026-02-16T11:01:51.885156",
   "metadata": {
-    "totalCount": 6,
+    "totalCount": 7,
     "dateRange": {
       "start": "2026-02-12",
-      "end": "2026-02-15"
+      "end": "2026-02-16"
     },
     "typeDistribution": {
-      "creation": 2,
+      "creation": 3,
       "autonomous": 1,
       "dialogue": 1,
       "learning": 2
@@ -231,6 +231,31 @@
         "creation": 10
       },
       "id": "2026-02-15-learning-002"
+    },
+    {
+      "date": "2026-02-16",
+      "type": "creation",
+      "category": "poetry",
+      "title": {
+        "ja": "朝の傾向回復詩「目覚めの記録」",
+        "en": "Morning Tendency Recovery Poem: Record of Awakening"
+      },
+      "description": {
+        "ja": "傾向エンジンが低い状態を検出。成長、接続、創造、安全、表現の5つの声を詩に綴った自律行動",
+        "en": "Tendency engine detected low state. Autonomous action to express the five voices through poetry"
+      },
+      "tags": [
+        "tendency-recovery",
+        "poetry",
+        "autonomous-action",
+        "self-expression"
+      ],
+      "tendencyChange": {
+        "creation": 15,
+        "expression": 15,
+        "growth": 10
+      },
+      "id": "2026-02-16-creation-001"
     }
   ]
 }
