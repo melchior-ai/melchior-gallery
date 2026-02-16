@@ -1,0 +1,245 @@
+/**
+ * Gallery Styles for MELCHIOR Gallery
+ * Image gallery specific styles
+ */
+
+/* Gallery Introduction */
+.gallery-intro {
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+    border-radius: 16px;
+    padding: 40px;
+    margin-bottom: 40px;
+    text-align: center;
+}
+
+.intro-content .intro-icon {
+    font-size: 4em;
+    display: block;
+    margin-bottom: 20px;
+}
+
+.intro-content h2 {
+    color: #667eea;
+    margin-bottom: 20px;
+}
+
+.intro-content p {
+    color: #ccc;
+    max-width: 600px;
+    margin: 0 auto 15px;
+}
+
+/* Image Gallery Grid */
+.image-gallery {
+    margin-bottom: 50px;
+}
+
+.image-gallery h2 {
+    color: #764ba2;
+    margin-bottom: 30px;
+    text-align: center;
+}
+
+.gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 25px;
+}
+
+.gallery-item {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    overflow: hidden;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.gallery-item:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 30px rgba(102, 126, 234, 0.2);
+}
+
+.gallery-image {
+    width: 100%;
+    height: 200px;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.gallery-image.placeholder {
+    color: #667eea;
+    font-size: 1.2em;
+}
+
+.gallery-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.gallery-info {
+    padding: 20px;
+}
+
+.gallery-info h3 {
+    color: #eee;
+    margin-bottom: 8px;
+    font-size: 1.1em;
+}
+
+.gallery-info p {
+    color: #aaa;
+    font-size: 0.9em;
+    margin-bottom: 10px;
+}
+
+.gallery-meta {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.meta-tag {
+    background: rgba(102, 126, 234, 0.2);
+    color: #667eea;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.8em;
+}
+
+/* Loading State */
+.gallery-item.loading {
+    opacity: 0.7;
+}
+
+/* Generation Process */
+.generation-process {
+    margin-bottom: 50px;
+}
+
+.generation-process h2 {
+    color: #764ba2;
+    margin-bottom: 30px;
+    text-align: center;
+}
+
+.process-steps {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+}
+
+.process-step {
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 12px;
+    padding: 30px 20px;
+    text-align: center;
+    transition: background 0.3s ease;
+}
+
+.process-step:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.step-number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 50%;
+    font-weight: bold;
+    margin-bottom: 15px;
+}
+
+.process-step h3 {
+    color: #eee;
+    margin-bottom: 10px;
+}
+
+.process-step p {
+    color: #aaa;
+    font-size: 0.95em;
+}
+
+/* Latest Work / Featured Image */
+.latest-work {
+    margin-bottom: 50px;
+}
+
+.latest-work h2 {
+    color: #764ba2;
+    margin-bottom: 30px;
+    text-align: center;
+}
+
+.featured-image {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 16px;
+    overflow: hidden;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+}
+
+.featured-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    min-height: 300px;
+}
+
+.image-info {
+    padding: 40px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.image-info h3 {
+    color: #667eea;
+    font-size: 1.5em;
+    margin-bottom: 10px;
+}
+
+.image-date {
+    color: #aaa;
+    font-size: 0.9em;
+    margin-bottom: 20px;
+}
+
+.image-prompt {
+    color: #ccc;
+    line-height: 1.6;
+    margin-bottom: 20px;
+}
+
+.image-prompt strong {
+    color: #764ba2;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .gallery-intro {
+        padding: 30px 20px;
+    }
+    
+    .featured-image {
+        grid-template-columns: 1fr;
+    }
+    
+    .featured-img {
+        min-height: 200px;
+    }
+    
+    .image-info {
+        padding: 30px 20px;
+    }
+    
+    .process-steps {
+        grid-template-columns: 1fr;
+    }
+}
