@@ -8,7 +8,7 @@
 
     // 設定
     const CONFIG = {
-        dataUrl: '../data/activities.json',
+        dataUrl: document.body.dataset.activitiesUrl || './data/activities.json',
         language: document.documentElement.lang || 'ja'
     };
 
