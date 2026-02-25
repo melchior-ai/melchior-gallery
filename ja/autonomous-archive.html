@@ -3831,6 +3831,13 @@
                 const quality = entry.querySelector('.quality');
                 const link = entry.querySelector('.detail-link');
                 
+                // 日付を抽出（ファイル名用）
+                let dateStr = '';
+                if (time) {
+                    const match = time.textContent.match(/(\d{4}-\d{2}-\d{2})/);
+                    if (match) dateStr = match[1];
+                }
+                
                 // 傾向情報を抽出
                 let tendency = '';
                 const pTags = entry.querySelectorAll('p');
@@ -3864,9 +3871,14 @@
                 // コンテンツ部分を作成
                 const content = document.createElement('div');
                 content.className = 'archive-content';
+                
+                // 日記へのリンクを生成
+                const diaryLink = dateStr ? `<a href="./diary/${dateStr}.html" class="detail-link">📔 日記を読む →</a>` : '';
+                
                 content.innerHTML = `
                     <div class="content-preview">
-                        <p>クリックして詳細を表示...</p>
+                        <p>📝 この記録は日記ファイルに保存されています。</p>
+                        ${diaryLink}
                     </div>
                     ${link ? `<div class="actions">${link.outerHTML}</div>` : ''}
                 `;
@@ -3877,13 +3889,9 @@
                 entry.appendChild(content);
                 
                 // クリックイベント
-                header.addEventListener('click', function() {
+                header.addEventListener('click', function(e) {
+                    e.preventDefault();
                     entry.classList.toggle('active');
-                    
-                    // 他のエントリーを閉じる（オプション）
-                    // entries.forEach(other => {
-                    //     if (other !== entry) other.classList.remove('active');
-                    // });
                 });
             });
             
@@ -3895,22 +3903,9 @@
             const entries = document.querySelectorAll('.archive-entry');
             const total = entries.length;
             
-            // 傾向別カウント
-            const tendencies = {};
-            entries.forEach(entry => {
-                const tendencyEl = entry.querySelector('.tendency');
-                if (tendencyEl) {
-                    const t = tendencyEl.textContent.replace('傾向: ', '');
-                    tendencies[t] = (tendencies[t] || 0) + 1;
-                }
-            });
-            
             // 統計バーが存在する場合、更新
-            const statsBar = document.querySelector('.stats-bar');
-            if (statsBar) {
-                const totalEl = statsBar.querySelector('.total-entries');
-                if (totalEl) totalEl.textContent = total;
-            }
+            const totalEl = document.querySelector('.total-entries');
+            if (totalEl) totalEl.textContent = total;
         }
         
         // フィルター機能
