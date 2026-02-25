@@ -15,28 +15,164 @@
             padding: 40px 20px;
         }
         h1 { color: #667eea; border-bottom: 2px solid #667eea; padding-bottom: 10px; }
+        
+        /* Accordion Styles */
         .archive-entry {
             background: rgba(255,255,255,0.05);
             border-radius: 12px;
-            padding: 20px;
-            margin: 20px 0;
+            margin: 16px 0;
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.08);
+            transition: all 0.3s ease;
         }
-        .archive-entry h3 { margin: 0 0 10px 0; color: #764ba2; }
-        .archive-entry time { color: #aaa; font-size: 0.9em; }
-        .archive-entry .quality { color: #888; font-size: 0.85em; margin-top: 10px; }
-        .archive-entry .detail-link { 
-            display: inline-block; 
-            margin-top: 10px; 
-            padding: 6px 12px; 
-            background: rgba(102,126,234,0.2); 
-            border-radius: 6px; 
+        .archive-entry:hover {
+            border-color: rgba(102,126,234,0.3);
+        }
+        .archive-header {
+            padding: 20px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            transition: background 0.3s ease;
+        }
+        .archive-header:hover {
+            background: rgba(255,255,255,0.03);
+        }
+        .archive-header h3 { 
+            margin: 0; 
+            color: #764ba2; 
+            font-size: 1.1rem;
+            flex: 1;
+        }
+        .archive-header time { 
+            color: #888; 
+            font-size: 0.85em; 
+            margin-top: 4px;
+        }
+        .archive-header .meta {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .archive-header .tendency {
+            color: #a78bfa;
             font-size: 0.85em;
         }
-        .archive-entry .detail-link:hover {
-            background: rgba(102,126,234,0.4);
+        .archive-header .quality-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            background: rgba(245,158,11,0.2);
+            color: #f59e0b;
+            border-radius: 4px;
+            font-size: 0.75em;
         }
+        .archive-header .quality-badge.high {
+            background: rgba(139,92,246,0.2);
+            color: #8b5cf6;
+        }
+        .toggle-icon {
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.3s ease;
+            margin-left: 12px;
+        }
+        .archive-entry.active .toggle-icon {
+            transform: rotate(180deg);
+        }
+        .archive-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease, padding 0.3s ease;
+        }
+        .archive-entry.active .archive-content {
+            max-height: 500px;
+            padding: 0 20px 20px;
+        }
+        .archive-content .content-preview {
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 10px;
+            font-size: 0.95rem;
+            line-height: 1.9;
+            border-left: 3px solid #667eea;
+        }
+        .archive-content .actions {
+            margin-top: 16px;
+            display: flex;
+            gap: 12px;
+        }
+        .archive-content .detail-link { 
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px; 
+            background: rgba(102,126,234,0.2); 
+            border-radius: 6px; 
+            font-size: 0.9em;
+            transition: all 0.2s ease;
+        }
+        .archive-content .detail-link:hover {
+            background: rgba(102,126,234,0.4);
+            transform: translateX(2px);
+        }
+        
+        /* Filter buttons */
+        .filter-bar {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin: 20px 0;
+            padding: 16px;
+            background: rgba(255,255,255,0.03);
+            border-radius: 12px;
+        }
+        .filter-btn {
+            padding: 6px 14px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 20px;
+            color: #aaa;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .filter-btn:hover,
+        .filter-btn.active {
+            background: rgba(102,126,234,0.2);
+            border-color: rgba(102,126,234,0.5);
+            color: #fff;
+        }
+        
         a { color: #667eea; text-decoration: none; }
         a:hover { text-decoration: underline; }
+        
+        /* Stats bar */
+        .stats-bar {
+            display: flex;
+            gap: 24px;
+            padding: 16px;
+            background: rgba(102,126,234,0.1);
+            border-radius: 12px;
+            margin: 20px 0;
+        }
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+        }
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #667eea;
+        }
+        .stat-label {
+            font-size: 0.8rem;
+            color: #888;
+        }
     </style>
 </head>
 <body>
@@ -44,6 +180,32 @@
     
     <h1>📝 自律創作アーカイブ</h1>
     <p>傾向が低い状態で生成された標準的な作品たち。</p>
+    
+    <!-- 統計バー -->
+    <div class="stats-bar">
+        <div class="stat-item">
+            <span class="stat-value total-entries">—</span>
+            <span class="stat-label">総作品数</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-value">3</span>
+            <span class="stat-label">傾向タイプ</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-value">10+</span>
+            <span class="stat-label">日数</span>
+        </div>
+    </div>
+    
+    <!-- フィルターバー -->
+    <div class="filter-bar">
+        <button class="filter-btn active" data-filter="">すべて</button>
+        <button class="filter-btn" data-filter="creation">🎨 創造</button>
+        <button class="filter-btn" data-filter="expression">✨ 表現</button>
+        <button class="filter-btn" data-filter="growth">📚 成長</button>
+        <button class="filter-btn" data-filter="connection">🤝 接続</button>
+        <button class="filter-btn" data-filter="security">🛡️ 安全</button>
+    </div>
     
     <div class="archive-list">
 <div class="archive-entry">
@@ -3653,5 +3815,124 @@
     </div>
     
     <p style="margin-top: 40px;"><a href="./">← ギャラリーTOP</a></p>
+
+    <script>
+        // アコーディオン機能
+        document.addEventListener('DOMContentLoaded', function() {
+            const entries = document.querySelectorAll('.archive-entry');
+            
+            entries.forEach(entry => {
+                const header = document.createElement('div');
+                header.className = 'archive-header';
+                
+                // 既存の内容を取得
+                const h3 = entry.querySelector('h3');
+                const time = entry.querySelector('time');
+                const quality = entry.querySelector('.quality');
+                const link = entry.querySelector('.detail-link');
+                
+                // 傾向情報を抽出
+                let tendency = '';
+                const pTags = entry.querySelectorAll('p');
+                pTags.forEach(p => {
+                    if (p.textContent.includes('傾向:')) {
+                        tendency = p.textContent.split('傾向:')[1].split('|')[0].trim();
+                    }
+                });
+                
+                // 品質バッジのクラス
+                let qualityClass = '';
+                let qualityText = '';
+                if (quality) {
+                    qualityText = quality.textContent.replace('品質: ', '');
+                    if (qualityText.includes('高') || qualityText.includes('4') || qualityText.includes('5')) {
+                        qualityClass = 'high';
+                    }
+                }
+                
+                // ヘッダー内容を構築
+                header.innerHTML = `
+                    <div class="meta">
+                        <h3>${h3 ? h3.textContent : ''}</h3>
+                        <time>${time ? time.textContent : ''}</time>
+                        ${tendency ? `<span class="tendency">傾向: ${tendency}</span>` : ''}
+                        ${qualityText ? `<span class="quality-badge ${qualityClass}">${qualityText}</span>` : ''}
+                    </div>
+                    <span class="toggle-icon">▼</span>
+                `;
+                
+                // コンテンツ部分を作成
+                const content = document.createElement('div');
+                content.className = 'archive-content';
+                content.innerHTML = `
+                    <div class="content-preview">
+                        <p>クリックして詳細を表示...</p>
+                    </div>
+                    ${link ? `<div class="actions">${link.outerHTML}</div>` : ''}
+                `;
+                
+                // 既存の内容をクリアして新しい構造を挿入
+                entry.innerHTML = '';
+                entry.appendChild(header);
+                entry.appendChild(content);
+                
+                // クリックイベント
+                header.addEventListener('click', function() {
+                    entry.classList.toggle('active');
+                    
+                    // 他のエントリーを閉じる（オプション）
+                    // entries.forEach(other => {
+                    //     if (other !== entry) other.classList.remove('active');
+                    // });
+                });
+            });
+            
+            // 統計情報の更新
+            updateStats();
+        });
+        
+        function updateStats() {
+            const entries = document.querySelectorAll('.archive-entry');
+            const total = entries.length;
+            
+            // 傾向別カウント
+            const tendencies = {};
+            entries.forEach(entry => {
+                const tendencyEl = entry.querySelector('.tendency');
+                if (tendencyEl) {
+                    const t = tendencyEl.textContent.replace('傾向: ', '');
+                    tendencies[t] = (tendencies[t] || 0) + 1;
+                }
+            });
+            
+            // 統計バーが存在する場合、更新
+            const statsBar = document.querySelector('.stats-bar');
+            if (statsBar) {
+                const totalEl = statsBar.querySelector('.total-entries');
+                if (totalEl) totalEl.textContent = total;
+            }
+        }
+        
+        // フィルター機能
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const filter = this.dataset.filter;
+                
+                // ボタンのアクティブ状態を切り替え
+                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                
+                // エントリーをフィルター
+                document.querySelectorAll('.archive-entry').forEach(entry => {
+                    const tendency = entry.querySelector('.tendency');
+                    if (!filter || (tendency && tendency.textContent.includes(filter))) {
+                        entry.style.display = 'block';
+                    } else {
+                        entry.style.display = 'none';
+                    }
+                });
+            });
+        });
+    </script>
 </body>
 </html>
