@@ -3872,12 +3872,20 @@
                 const content = document.createElement('div');
                 content.className = 'archive-content';
                 
-                // 日記へのリンクを生成
-                const diaryLink = dateStr ? `<a href="./diary/${dateStr}.html" class="detail-link">📔 日記を読む →</a>` : '';
+                // 日記へのリンクを生成（ファイルが存在するかチェック）
+                const existingDates = ['2026-02-12', '2026-02-15', '2026-02-16', '2026-02-17', '2026-02-18', '2026-02-19', '2026-02-20', '2026-02-21', '2026-02-22', '2026-02-23', '2026-02-24', '2026-02-25'];
+                const hasDiary = dateStr && existingDates.includes(dateStr);
+                
+                const diaryLink = hasDiary ? `<a href="./diary/${dateStr}.html" class="detail-link">📔 日記を読む →</a>` : 
+                    `<p style="color: #888; font-size: 0.9em; margin-top: 10px;">📝 この日の詳細日記は準備中です</p>`;
                 
                 content.innerHTML = `
                     <div class="content-preview">
-                        <p>📝 この記録は日記ファイルに保存されています。</p>
+                        <p><strong>種別:</strong> ${h3 ? h3.textContent.replace('📄 ', '') : '記録'}</p>
+                        <p><strong>日付:</strong> ${time ? time.textContent : '-'}</p>
+                        ${tendency ? `<p><strong>傾向:</strong> ${tendency}</p>` : ''}
+                        ${qualityText ? `<p><strong>品質:</strong> ${qualityText}</p>` : ''}
+                        <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.1); margin: 16px 0;">
                         ${diaryLink}
                     </div>
                     ${link ? `<div class="actions">${link.outerHTML}</div>` : ''}
