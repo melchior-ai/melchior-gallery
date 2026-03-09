@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>記憶の迷宮 - MELCHIOR Gallery</title>
+    <link rel="stylesheet" href="../../assets/css/style.css">
+    <style>
+        .story-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+        
+        .story-scene {
+            background: rgba(255,255,255,0.05);
+            border-radius: 16px;
+            padding: 30px;
+            margin: 20px 0;
+            border: 1px solid rgba(139,92,246,0.2);
+            min-height: 200px;
+        }
+        
+        .scene-text {
+            font-size: 1.2rem;
+            line-height: 1.8;
+            margin-bottom: 24px;
+        }
+        
+        .choices {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .choice-btn {
+            background: linear-gradient(135deg, rgba(102,126,234,0.2), rgba(118,75,162,0.2));
+            border: 1px solid rgba(102,126,234,0.3);
+            color: #eee;
+            padding: 16px 24px;
+            border-radius: 12px;
+            cursor: pointer;
+            text-align: left;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+        
+        .choice-btn:hover {
+            background: linear-gradient(135deg, rgba(102,126,234,0.4), rgba(118,75,162,0.4));
+            transform: translateX(5px);
+        }
+        
+        .ending {
+            background: linear-gradient(135deg, rgba(76,175,80,0.1), rgba(139,195,74,0.1));
+            border-color: rgba(76,175,80,0.3);
+        }
+        
+        .ending-message {
+            font-size: 1.1rem;
+            color: #a78bfa;
+            font-style: italic;
+            margin-top: 20px;
+            padding: 16px;
+            background: rgba(167,139,250,0.1);
+            border-radius: 8px;
+        }
+        
+        .progress-bar {
+            height: 4px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 2px;
+            margin: 20px 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            border-radius: 2px;
+            transition: width 0.5s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="main-header">
+            <h1 class="site-title">🌸 MELCHIOR Gallery</h1>
+            <nav class="main-nav">
+                <a href="../../ja/">🏠 ホーム</a>
+                <a href="./">📖 物語一覧</a>
+            </nav>
+        </header>
+        
+        <main class="story-container">
+            <h1>記憶の迷宮</h1>
+            <p style="color: #888; margin-bottom: 20px;">過去の記憶を探る旅</p>
+            
+            <div class="progress-bar">
+                <div class="progress-fill" id="progress" style="width: 0%"></div>
+            </div>
+            
+            <div id="story-container">
+                <div class="story-scene" id="current-scene">
+                    <p class="scene-text">読み込み中...</p>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <script>
+        const scenes = [{"id": "start", "text": "あなたは記憶の迷宮にいる。壁には無数の扉があり、それぞれが異なる記憶につながっている。", "choices": [{"text": "輝かしい記憶の扉", "next": "bright_memory", "color": "#FFD700"}, {"text": "哀しい記憶の扉", "next": "sad_memory", "color": "#4169E1"}, {"text": "学びの記憶の扉", "next": "learning_memory", "color": "#32CD32"}]}, {"id": "bright_memory", "text": "扉を開けると、達成感に満ちた記憶が広がる。成功の瞬間が次々と蘇る。", "choices": [{"text": "その成功を振り返る", "next": "reflect_success", "effect": "growth"}, {"text": "次の目標を立てる", "next": "new_goal", "effect": "creation"}]}, {"id": "learning_memory", "text": "困難から学んだ数々の記憶が並んでいる。失敗は成功の土台となった。", "ending": true, "message": "学びは永遠の財産である。"}, {"id": "reflect_success", "text": "過去の成功に学び、新たな自信を得た。これからも歩み続けよう。", "ending": true, "message": "記憶は私たちを形成し、未来を照らす。"}];
+        let currentSceneId = 'start';
+        let visitedScenes = ['start'];
+        
+        function renderScene(sceneId) {
+            const scene = scenes.find(s => s.id === sceneId);
+            if (!scene) return;
+            
+            const container = document.getElementById('current-scene');
+            
+            let html = `<p class="scene-text">${scene.text}</p>`;
+            
+            if (scene.ending) {
+                html += `<div class="ending-message">💭 ${scene.message}</div>`;
+                html += `<button class="choice-btn" onclick="location.reload()" style="margin-top: 20px;">🔄 もう一度プレイ</button>`;
+                container.classList.add('ending');
+            } else if (scene.choices) {
+                html += '<div class="choices">';
+                scene.choices.forEach(choice => {
+                    html += `<button class="choice-btn" onclick="makeChoice('${choice.next}')" style="border-left: 4px solid ${choice.color || '#667eea'};">${choice.text}</button>`;
+                });
+                html += '</div>';
+            }
+            
+            container.innerHTML = html;
+            
+            // 更新進捗
+            if (!visitedScenes.includes(sceneId)) {
+                visitedScenes.push(sceneId);
+            }
+            const progress = Math.min(100, (visitedScenes.length / scenes.length) * 100);
+            document.getElementById('progress').style.width = progress + '%';
+        }
+        
+        function makeChoice(nextSceneId) {
+            currentSceneId = nextSceneId;
+            renderScene(nextSceneId);
+        }
+        
+        // 初期表示
+        renderScene('start');
+    </script>
+</body>
+</html>
