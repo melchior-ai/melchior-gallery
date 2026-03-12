@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🌍 World Simulator | MELCHIOR Gallery</title>
+    <link rel="stylesheet" href="../assets/css/world-simulator.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <a href="../index.html" class="back-link">← Gallery</a>
+                <h1>🌍 World Simulator</h1>
+                <p class="subtitle">Multi-Layer Global Simulation System</p>
+            </div>
+        </header>
+
+        <!-- Control Panel -->
+        <div class="control-panel">
+            <div class="scenario-selector">
+                <label for="scenario">シナリオ選択:</label>
+                <select id="scenario">
+                    <option value="middle_east_conflict">中東紛争シナリオ</option>
+                    <option value="global_recession">世界恐慌シナリオ</option>
+                    <option value="climate_crisis">気候危機シナリオ</option>
+                </select>
+            </div>
+            
+            <div class="simulation-controls">
+                <button id="startBtn" class="btn btn-primary">
+                    <span class="icon">▶</span> 開始
+                </button>
+                <button id="pauseBtn" class="btn btn-secondary" disabled>
+                    <span class="icon">⏸</span> 一時停止
+                </button>
+                <button id="resetBtn" class="btn btn-danger">
+                    <span class="icon">🔄</span> リセット
+                </button>
+                <button id="stepBtn" class="btn btn-secondary">
+                    <span class="icon">⏭</span> 1ステップ
+                </button>
+            </div>
+
+            <div class="speed-control">
+                <label>速度:</label>
+                <input type="range" id="speed" min="100" max="2000" value="500" step="100">
+                <span id="speedValue">500ms</span>
+            </div>
+
+            <div class="step-display">
+                <span>ステップ: <strong id="currentStep">0</strong> / <span id="totalSteps">12</span></span>
+            </div>
+        </div>
+
+        <!-- Main Grid -->
+        <div class="main-grid">
+            <!-- Left Panel: Global State -->
+            <div class="panel global-state-panel">
+                <h2>🌐 グローバル状態</h2>
+                
+                <div class="commodities-section">
+                    <h3>📈 商品価格</h3>
+                    <div class="metric-cards">
+                        <div class="metric-card" id="oil-brent">
+                            <div class="metric-icon">🛢️</div>
+                            <div class="metric-content">
+                                <div class="metric-label">原油 (Brent)</div>
+                                <div class="metric-value">$<span id="oilBrent">75.00</span></div>
+                                <div class="metric-change positive">+0%</div>
+                            </div>
+                            <div class="sparkline-container">
+                                <canvas id="oilChart"></canvas>
+                            </div>
+                        </div>
+                        
+                        <div class="metric-card" id="natural-gas">
+                            <div class="metric-icon">🔥</div>
+                            <div class="metric-content">
+                                <div class="metric-label">天然ガス</div>
+                                <div class="metric-value">$<span id="naturalGas">2.80</span></div>
+                                <div class="metric-change positive">+0%</div>
+                            </div>
+                        </div>
+                        
+                        <div class="metric-card" id="gold">
+                            <div class="metric-icon">🥇</div>
+                            <div class="metric-content">
+                                <div class="metric-label">金</div>
+                                <div class="metric-value">$<span id="gold">2000</span></div>
+                                <div class="metric-change positive">+0%</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="financial-section">
+                    <h3>💹 金融指標</h3>
+                    <div class="metric-cards">
+                        <div class="metric-card">
+                            <div class="metric-icon">📉</div>
+                            <div class="metric-content">
+                                <div class="metric-label">米国金利</div>
+                                <div class="metric-value"><span id="usInterestRate">5.25</span>%</div>
+                            </div>
+                        </div>
+                        
+                        <div class="metric-card">
+                            <div class="metric-icon">💰</div>
+                            <div class="metric-content">
+                                <div class="metric-label">世界インフレ</div>
+                                <div class="metric-value"><span id="globalInflation">4.2</span>%</div>
+                            </div>
+                        </div>
+                        
+                        <div class="metric-card">
+                            <div class="metric-icon">📊</div>
+                            <div class="metric-content">
+                                <div class="metric-label">VIX (恐怖指数)</div>
+                                <div class="metric-value"><span id="vix">15</span></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="geopolitics-section">
+                    <h3>⚔️ 地政学指標</h3>
+                    <div class="tension-meter">
+                        <label>世界緊張度</label>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="tensionBar" style="width: 45%"></div>
+                        </div>
+                        <span id="tensionValue">45%</span>
+                    </div>
+                    <div class="tension-meter">
+                        <label>核リスク</label>
+                        <div class="progress-bar danger">
+                            <div class="progress-fill" id="nuclearBar" style="width: 15%"></div>
+                        </div>
+                        <span id="nuclearValue">15%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Center Panel: Time Series Charts -->
+            <div class="panel charts-panel">
+                <h2>📊 時系列変化</h2>
+                
+                <div class="chart-container">
+                    <h3>原油価格推移</h3>
+                    <canvas id="oilTimeSeries"></canvas>
+                </div>
+                
+                <div class="chart-container">
+                    <h3>ドメイン状態推移</h3>
+                    <canvas id="domainTimeSeries"></canvas>
+                </div>
+            </div>
+
+            <!-- Right Panel: Regions & Events -->
+            <div class="panel regions-panel">
+                <h2>🗺️ 地域への影響</h2>
+                <div class="region-grid" id="regionGrid">
+                    <!-- Regions will be populated by JS -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Event Timeline -->
+        <div class="panel event-timeline-panel">
+            <h2>⚡ イベントタイムライン</h2>
+            <div class="timeline" id="eventTimeline">
+                <div class="timeline-empty">シミュレーションを開始してください</div>
+            </div>
+        </div>
+
+        <!-- Domain Status Grid -->
+        <div class="panel domains-panel">
+            <h2>📊 10ドメイン状態</h2>
+            <div class="domain-grid" id="domainGrid">
+                <!-- Domains will be populated by JS -->
+            </div>
+        </div>
+
+        <!-- Agent Responses Panel -->
+        <div class="panel agent-panel">
+            <h2>🎭 エージェント反応</h2>
+            <div class="agent-responses" id="agentResponses">
+                <div class="agent-empty">エージェントの反応がここに表示されます</div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>🌍 World Simulator v1.0 | MELCHIOR Gallery</p>
+            <p>エージェント媒介型動的相互作用システム</p>
+        </footer>
+    </div>
+
+    <script src="../assets/js/world-simulator.js"></script>
+</body>
+</html>
