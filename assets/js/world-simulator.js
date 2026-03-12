@@ -1,62 +1,565 @@
 /**
- * World Simulator - Interactive Visualization
+ * World Simulator - Agent-Mediated Interactive Visualization
  * 
- * Multi-layer global simulation system with real-time visualization
+ * True multi-agent system where world state emerges from agent interactions
+ * No random events - all changes come from agent decisions
  */
 
 // ===============================
-// Configuration & State
+// Configuration
 // ===============================
 
 const CONFIG = {
-    defaultSpeed: 500,
-    maxSteps: 9999,  // 無制限に近い
-    updateInterval: null,
+    defaultSpeed: 800,
+    maxSteps: 9999,
 };
 
-let state = {
-    isRunning: false,
-    currentStep: 0,
-    speed: CONFIG.defaultSpeed,
-    scenario: 'middle_east_conflict',
-    history: {
-        oilPrices: [],
-        tensionLevels: [],
-        domainStates: {},
-    },
-    globalState: {
-        commodities: {
-            oil_brent: 75.0,
-            oil_wti: 72.0,
-            natural_gas: 2.8,
-            gold: 2000,
-            copper: 8500,
-            wheat: 280,
-        },
-        financial: {
-            us_interest_rate: 5.25,
-            us_10y_yield: 4.5,
-            dollar_index: 102,
-            global_inflation: 4.2,
-            sp500: 4800,
-            vix: 15,
-        },
-        geopolitics: {
-            global_tension: 0.45,
-            nuclear_risk: 0.15,
-            cyber_threat: 0.60,
-        },
-        environment: {
-            global_temp: 1.2,
-            extreme_events: 0.65,
-        },
-    },
-    domains: {},
-    events: [],
-    agentResponses: [],
-};
+// ===============================
+// Agent Base Class
+// ===============================
 
-// Domain configurations
+class Agent {
+    constructor(id, name, type) {
+        this.id = id;
+        this.name = name;
+        this.type = type;
+        this.beliefs = {};
+        this.history = [];
+    }
+    
+    perceive(worldState) {}
+    
+    decide(worldState) {
+        return { action: 'observe', params: {} };
+    }
+    
+    act(decision, worldState) {}
+    
+    updateBelief(key, value) {
+        this.beliefs[key] = { value, updatedAt: Date.now() };
+    }
+    
+    getBelief(key) {
+        return this.beliefs[key]?.value ?? null;
+    }
+    
+    addToHistory(event) {
+        this.history.push({ ...event, timestamp: Date.now() });
+        if (this.history.length > 30) this.history.shift();
+    }
+}
+
+// ===============================
+// Government Agent
+// ===============================
+
+class GovernmentAgent extends Agent {
+    constructor(region) {
+        super(`gov_${region}`, `${region}政府`, 'government');
+        this.region = region;
+        this.resources = { political_capital: 0.7, reserves: 0.5 };
+        this.pressure = 0;
+    }
+    
+    perceive(worldState) {
+        const g = worldState.global;
+        this.updateBelief('inflation', g.financial.global_inflation / 10);
+        this.updateBelief('tension', g.geopolitics.global_tension);
+        this.updateBelief('oil_price', g.commodities.oil_brent / 150);
+        
+        this.pressure = 0;
+        if (this.getBelief('inflation') > 0.05) this.pressure += 0.15;
+        if (this.getBelief('oil_price') > 0.8) this.pressure += 0.2;
+        if (this.getBelief('tension') > 0.6) this.pressure += 0.1;
+    }
+    
+    decide(worldState) {
+        const inflation = this.getBelief('inflation');
+        const tension = this.getBelief('tension');
+        const oilPrice = this.getBelief('oil_price');
+        
+        if (inflation > 0.06 && this.resources.political_capital > 0.3) {
+            return { action: 'raise_rates', params: { amount: 0.0025 }, reason: 'インフレ抑制のため金利引き上げ' };
+        }
+        if (oilPrice > 0.85 && this.resources.reserves > 0.2) {
+            return { action: 'release_reserves', params: { amount: 0.1 }, reason: 'エネルギー価格安定化のため備蓄放出' };
+        }
+        if (tension > 0.65 && this.resources.political_capital > 0.4) {
+            return { action: 'diplomacy', params: {}, reason: '緊張緩和のため外交イニシアチブ' };
+        }
+        if (this.pressure > 0.4 && this.resources.political_capital > 0.5) {
+            return { action: 'stimulus', params: {}, reason: '国内圧力緩和のため経済対策' };
+        }
+        if (this.resources.political_capital < 0.3) {
+            return { action: 'consolidate', params: {}, reason: '政治基盤強化のため静観' };
+        }
+        return { action: 'observe', params: {}, reason: '現状維持、状況監視中' };
+    }
+    
+    act(decision, worldState) {
+        const effects = [];
+        switch (decision.action) {
+            case 'raise_rates':
+                worldState.global.financial.us_interest_rate += decision.params.amount;
+                this.resources.political_capital -= 0.05;
+                this.pressure -= 0.05;
+                effects.push({ type: 'rate_hike', value: decision.params.amount * 100 });
+                break;
+            case 'release_reserves':
+                worldState.global.commodities.oil_brent *= 0.97;
+                this.resources.reserves -= decision.params.amount;
+                effects.push({ type: 'oil_drop', value: -3 });
+                break;
+            case 'diplomacy':
+                worldState.global.geopolitics.global_tension *= 0.94;
+                this.resources.political_capital += 0.02;
+                effects.push({ type: 'tension_down', value: -6 });
+                break;
+            case 'stimulus':
+                worldState.economy.growth += 0.01;
+                this.resources.political_capital -= 0.1;
+                this.pressure -= 0.1;
+                effects.push({ type: 'growth_boost', value: 1 });
+                break;
+            case 'consolidate':
+                this.resources.political_capital += 0.03;
+                break;
+        }
+        this.addToHistory(decision);
+        return effects;
+    }
+}
+
+// ===============================
+// Investor Agent
+// ===============================
+
+class InvestorAgent extends Agent {
+    constructor(id, name, riskTolerance = 0.5) {
+        super(id, name, 'investor');
+        this.riskTolerance = riskTolerance;
+        this.portfolio = { stocks: 0.4, bonds: 0.3, commodities: 0.2, cash: 0.1 };
+        this.sentiment = 0.5;
+    }
+    
+    perceive(worldState) {
+        const g = worldState.global;
+        const vix = g.financial.vix;
+        const tension = g.geopolitics.global_tension;
+        
+        this.updateBelief('risk_level', (vix / 40 + tension) / 2);
+        this.updateBelief('inflation_pressure', g.financial.global_inflation / 10);
+        
+        const riskLevel = this.getBelief('risk_level');
+        this.sentiment = Math.max(0.1, Math.min(0.9, 
+            this.sentiment + (riskLevel > 0.6 ? -0.05 : 0.02)));
+    }
+    
+    decide(worldState) {
+        const riskLevel = this.getBelief('risk_level');
+        const inflationPressure = this.getBelief('inflation_pressure');
+        
+        if (riskLevel > 0.7 && this.portfolio.stocks > 0.2) {
+            return { action: 'flight_to_safety', params: { amount: 0.1 }, reason: 'リスク回避のため債券へシフト' };
+        }
+        if (this.sentiment < 0.3 && this.portfolio.cash > 0.1) {
+            return { action: 'buy_dip', params: { amount: 0.1 }, reason: '底値での買い場と判断' };
+        }
+        if (inflationPressure > 0.05 && this.portfolio.commodities < 0.3) {
+            return { action: 'inflation_hedge', params: { amount: 0.05 }, reason: 'インフレヘッジでコモディティ購入' };
+        }
+        if (Math.abs(this.portfolio.stocks - 0.4) > 0.15) {
+            return { action: 'rebalance', params: {}, reason: 'ポートフォリオリバランス' };
+        }
+        return { action: 'hold', params: {}, reason: '現在のポジション維持' };
+    }
+    
+    act(decision, worldState) {
+        const effects = [];
+        switch (decision.action) {
+            case 'flight_to_safety':
+                this.portfolio.stocks -= decision.params.amount;
+                this.portfolio.bonds += decision.params.amount;
+                worldState.global.financial.vix += 3;
+                worldState.global.financial.sp500 *= 0.97;
+                effects.push({ type: 'market_drop', value: -3 });
+                break;
+            case 'buy_dip':
+                this.portfolio.cash -= decision.params.amount;
+                this.portfolio.stocks += decision.params.amount;
+                worldState.global.financial.sp500 *= 1.015;
+                this.sentiment += 0.05;
+                effects.push({ type: 'market_up', value: 1.5 });
+                break;
+            case 'inflation_hedge':
+                this.portfolio.cash -= decision.params.amount;
+                this.portfolio.commodities += decision.params.amount;
+                worldState.global.commodities.gold *= 1.008;
+                effects.push({ type: 'gold_up', value: 0.8 });
+                break;
+            case 'rebalance':
+                const stockDiff = 0.4 - this.portfolio.stocks;
+                this.portfolio.stocks += stockDiff * 0.1;
+                effects.push({ type: 'rebalance', value: stockDiff > 0 ? 'buying' : 'selling' });
+                break;
+        }
+        this.addToHistory(decision);
+        return effects;
+    }
+}
+
+// ===============================
+// Consumer Agent
+// ===============================
+
+class ConsumerAgent extends Agent {
+    constructor(region) {
+        super(`consumer_${region}`, `${region}消費者`, 'consumer');
+        this.region = region;
+        this.confidence = 0.5;
+        this.spending = 0.5;
+    }
+    
+    perceive(worldState) {
+        const g = worldState.global;
+        const inflation = g.financial.global_inflation / 10;
+        const oilPrice = g.commodities.oil_brent / 100;
+        
+        this.updateBelief('cost_of_living', (inflation + oilPrice * 0.3) / 1.3);
+        this.updateBelief('job_security', 0.8);
+        
+        const costOfLiving = this.getBelief('cost_of_living');
+        this.confidence = Math.max(0.1, Math.min(0.9, 0.8 - costOfLiving * 0.3));
+    }
+    
+    decide(worldState) {
+        const costOfLiving = this.getBelief('cost_of_living');
+        const jobSecurity = this.getBelief('job_security');
+        
+        if (costOfLiving > 0.6 && this.spending > 0.3) {
+            return { action: 'reduce_spending', params: { amount: 0.05 }, reason: '生活費上昇のため支出削減' };
+        }
+        if (jobSecurity < 0.5 && this.spending > 0.3) {
+            return { action: 'save_more', params: { amount: 0.05 }, reason: '雇用不安のため貯蓄増加' };
+        }
+        if (this.confidence > 0.7 && this.spending < 0.7) {
+            return { action: 'increase_spending', params: { amount: 0.03 }, reason: '楽観的見通しで消費拡大' };
+        }
+        return { action: 'maintain', params: {}, reason: '通常の消費パターン維持' };
+    }
+    
+    act(decision, worldState) {
+        const effects = [];
+        switch (decision.action) {
+            case 'reduce_spending':
+                this.spending -= decision.params.amount;
+                worldState.economy.consumption -= 0.01;
+                this.confidence -= 0.02;
+                effects.push({ type: 'consumption_down', value: -1 });
+                break;
+            case 'save_more':
+                this.spending -= decision.params.amount;
+                worldState.economy.savings_rate += 0.005;
+                effects.push({ type: 'savings_up', value: 0.5 });
+                break;
+            case 'increase_spending':
+                this.spending += decision.params.amount;
+                worldState.economy.consumption += 0.01;
+                this.confidence += 0.01;
+                effects.push({ type: 'consumption_up', value: 1 });
+                break;
+        }
+        this.addToHistory(decision);
+        return effects;
+    }
+}
+
+// ===============================
+// Central Bank Agent
+// ===============================
+
+class CentralBankAgent extends Agent {
+    constructor() {
+        super('central_bank', '連邦準備制度', 'central_bank');
+        this.rate = 0.0525;
+        this.stance = 'neutral';
+    }
+    
+    perceive(worldState) {
+        const g = worldState.global;
+        const inflation = g.financial.global_inflation / 100;
+        const vix = g.financial.vix / 30;
+        
+        this.updateBelief('inflation_gap', inflation - 0.02);
+        this.updateBelief('financial_stress', vix);
+        
+        const gap = this.getBelief('inflation_gap');
+        this.stance = gap > 0.02 ? 'hawkish' : gap < -0.01 ? 'dovish' : 'neutral';
+    }
+    
+    decide(worldState) {
+        const gap = this.getBelief('inflation_gap');
+        const stress = this.getBelief('financial_stress');
+        
+        if (this.stance === 'hawkish' && this.rate < 0.07) {
+            return { action: 'hike', params: { amount: 0.0025 }, reason: 'インフレ抑制のため利上げ' };
+        }
+        if (stress > 0.8 && this.rate > 0.02) {
+            return { action: 'cut', params: { amount: 0.0025 }, reason: '金融安定化のため利下げ' };
+        }
+        if (this.stance === 'dovish' && this.rate > 0.02) {
+            return { action: 'cut', params: { amount: 0.0025 }, reason: '物価下支えのため緩和' };
+        }
+        return { action: 'hold', params: {}, reason: '現在の金融政策維持' };
+    }
+    
+    act(decision, worldState) {
+        const effects = [];
+        switch (decision.action) {
+            case 'hike':
+                this.rate += decision.params.amount;
+                worldState.global.financial.us_interest_rate = this.rate;
+                worldState.global.financial.global_inflation *= 0.97;
+                worldState.economy.growth -= 0.005;
+                effects.push({ type: 'rate_hike', value: decision.params.amount * 100 });
+                break;
+            case 'cut':
+                this.rate -= decision.params.amount;
+                worldState.global.financial.us_interest_rate = this.rate;
+                worldState.global.financial.global_inflation *= 1.03;
+                worldState.economy.growth += 0.005;
+                worldState.global.financial.vix *= 0.93;
+                effects.push({ type: 'rate_cut', value: -decision.params.amount * 100 });
+                break;
+        }
+        this.addToHistory(decision);
+        return effects;
+    }
+}
+
+// ===============================
+// Energy Producer Agent
+// ===============================
+
+class EnergyProducerAgent extends Agent {
+    constructor(name, capacity) {
+        super(`energy_${name}`, name, 'energy_producer');
+        this.capacity = capacity;
+        this.production = capacity * 0.8;
+        this.priceTarget = 75;
+    }
+    
+    perceive(worldState) {
+        const oilPrice = worldState.global.commodities.oil_brent;
+        const tension = worldState.global.geopolitics.global_tension;
+        
+        this.updateBelief('price_gap', (oilPrice - this.priceTarget) / this.priceTarget);
+        this.updateBelief('supply_risk', tension);
+    }
+    
+    decide(worldState) {
+        const priceGap = this.getBelief('price_gap');
+        const supplyRisk = this.getBelief('supply_risk');
+        
+        if (priceGap > 0.3 && this.production < this.capacity) {
+            return { action: 'increase_production', params: { amount: 0.05 }, reason: '高価格による生産増加' };
+        }
+        if (priceGap < -0.2 && this.production > this.capacity * 0.5) {
+            return { action: 'decrease_production', params: { amount: 0.05 }, reason: '価格維持のため生産調整' };
+        }
+        if (supplyRisk > 0.6) {
+            return { action: 'hold_inventory', params: {}, reason: '供給リスクのため在庫維持' };
+        }
+        return { action: 'maintain', params: {}, reason: '現在の生産水準維持' };
+    }
+    
+    act(decision, worldState) {
+        const effects = [];
+        switch (decision.action) {
+            case 'increase_production':
+                this.production += this.capacity * decision.params.amount;
+                worldState.global.commodities.oil_brent *= 0.97;
+                effects.push({ type: 'supply_up', value: 3 });
+                break;
+            case 'decrease_production':
+                this.production -= this.capacity * decision.params.amount;
+                worldState.global.commodities.oil_brent *= 1.03;
+                effects.push({ type: 'supply_down', value: -3 });
+                break;
+        }
+        this.addToHistory(decision);
+        return effects;
+    }
+}
+
+// ===============================
+// Simulation Engine
+// ===============================
+
+class WorldSimulator {
+    constructor() {
+        this.state = {
+            global: {
+                commodities: { oil_brent: 75.0, natural_gas: 2.8, gold: 2000 },
+                financial: { us_interest_rate: 0.0525, global_inflation: 4.2, sp500: 4800, vix: 15 },
+                geopolitics: { global_tension: 0.45, nuclear_risk: 0.15 },
+            },
+            economy: { growth: 0.025, consumption: 0.5, savings_rate: 0.05 },
+            domains: {},
+        };
+        this.agents = [];
+        this.step = 0;
+        this.history = { oilPrices: [], tensionLevels: [] };
+        this.events = [];
+        
+        this.initAgents();
+        this.initDomains();
+    }
+    
+    initAgents() {
+        this.agents.push(new GovernmentAgent('usa'));
+        this.agents.push(new GovernmentAgent('eu'));
+        this.agents.push(new GovernmentAgent('japan'));
+        this.agents.push(new CentralBankAgent());
+        this.agents.push(new InvestorAgent('inv_hedge', 'ヘッジファンド', 0.8));
+        this.agents.push(new InvestorAgent('inv_retail', '個人投資家', 0.4));
+        this.agents.push(new ConsumerAgent('usa'));
+        this.agents.push(new ConsumerAgent('eu'));
+        this.agents.push(new EnergyProducerAgent('opec', 1.0));
+        this.agents.push(new EnergyProducerAgent('shale', 0.5));
+    }
+    
+    initDomains() {
+        const domains = ['economy', 'politics', 'military', 'environment', 'technology', 'energy', 'society', 'health', 'food', 'information'];
+        domains.forEach(d => {
+            this.state.domains[d] = { stability: 0.5 + Math.random() * 0.2, growth: Math.random() * 0.3 - 0.1 };
+        });
+    }
+    
+    applyShock(scenario) {
+        switch (scenario) {
+            case 'middle_east_conflict':
+                this.state.global.commodities.oil_brent *= 1.4;
+                this.state.global.commodities.natural_gas *= 1.3;
+                this.state.global.geopolitics.global_tension += 0.2;
+                this.state.global.financial.vix *= 2;
+                this.addEvent('中東紛争勃発', { oil: '+40%', tension: '+20%' });
+                break;
+            case 'global_recession':
+                this.state.global.financial.sp500 *= 0.7;
+                this.state.global.financial.vix *= 3;
+                this.state.economy.growth = -0.03;
+                this.addEvent('世界恐慌開始', { sp500: '-30%', vix: '+200%' });
+                break;
+            case 'climate_crisis':
+                this.state.global.commodities.oil_brent *= 0.9;
+                this.state.domains.food.stability -= 0.2;
+                this.addEvent('気候危機発生', { oil: '-10%', food: '不安定化' });
+                break;
+        }
+    }
+    
+    simulateStep() {
+        this.step++;
+        
+        // All agents perceive
+        this.agents.forEach(a => a.perceive(this.state));
+        
+        // All agents decide and act
+        const actions = [];
+        this.agents.forEach(a => {
+            const decision = a.decide(this.state);
+            const effects = a.act(decision, this.state);
+            if (!['observe', 'hold', 'maintain'].includes(decision.action)) {
+                actions.push({ agent: a.name, action: decision.action, reason: decision.reason, effects });
+            }
+        });
+        
+        // Process interactions
+        this.processInteractions(actions);
+        
+        // Natural dynamics
+        this.applyDynamics();
+        this.updateDomains();
+        this.recordHistory();
+        
+        // Record significant event
+        if (actions.length > 0) {
+            const top = actions.sort((a, b) => b.effects.length - a.effects.length)[0];
+            this.addEvent(top.agent, { action: top.action });
+        }
+        
+        return actions;
+    }
+    
+    processInteractions(actions) {
+        const counts = {};
+        actions.forEach(a => counts[a.action] = (counts[a.action] || 0) + 1);
+        
+        if ((counts.hike || 0) >= 2) {
+            this.state.global.financial.global_inflation *= 0.94;
+        }
+        if ((counts.flight_to_safety || 0) >= 2) {
+            this.state.global.financial.sp500 *= 0.94;
+            this.state.global.financial.vix *= 1.25;
+        }
+        if ((counts.reduce_spending || 0) >= 2) {
+            this.state.economy.consumption *= 0.93;
+        }
+    }
+    
+    applyDynamics() {
+        const g = this.state.global;
+        
+        // Mean reversion
+        if (g.commodities.oil_brent > 100) g.commodities.oil_brent *= 0.997;
+        else if (g.commodities.oil_brent < 60) g.commodities.oil_brent *= 1.003;
+        
+        if (g.financial.vix > 25) g.financial.vix *= 0.994;
+        else if (g.financial.vix < 12) g.financial.vix *= 1.006;
+        
+        g.geopolitics.global_tension *= 0.997;
+        if (g.financial.global_inflation > 3) g.financial.global_inflation *= 0.998;
+    }
+    
+    updateDomains() {
+        const g = this.state.global;
+        this.state.domains.economy.stability = 0.5 - g.financial.vix / 100;
+        this.state.domains.energy.stability = 0.7 - (g.commodities.oil_brent - 75) / 200;
+        this.state.domains.politics.stability = 0.6 - g.geopolitics.global_tension * 0.3;
+        
+        for (const [d, s] of Object.entries(this.state.domains)) {
+            if (!['economy', 'energy', 'politics'].includes(d)) {
+                s.stability = Math.max(0.2, Math.min(0.8, s.stability + (Math.random() - 0.5) * 0.015));
+                s.growth = Math.max(-0.3, Math.min(0.3, s.growth + (Math.random() - 0.5) * 0.015));
+            }
+        }
+    }
+    
+    addEvent(name, data) {
+        this.events.push({ step: this.step, name, data });
+        if (this.events.length > 30) this.events.shift();
+    }
+    
+    recordHistory() {
+        this.history.oilPrices.push(this.state.global.commodities.oil_brent);
+        this.history.tensionLevels.push(this.state.global.geopolitics.global_tension);
+        if (this.history.oilPrices.length > 100) {
+            this.history.oilPrices.shift();
+            this.history.tensionLevels.shift();
+        }
+    }
+}
+
+// ===============================
+// UI Integration
+// ===============================
+
+let simulator = null;
+let isRunning = false;
+let updateInterval = null;
+let currentScenario = 'middle_east_conflict';
+
 const DOMAIN_CONFIG = {
     economy: { emoji: '💰', name: '経済', color: '#4CAF50' },
     politics: { emoji: '🏛️', name: '政治', color: '#9C27B0' },
@@ -70,890 +573,189 @@ const DOMAIN_CONFIG = {
     information: { emoji: '📡', name: '情報', color: '#3F51B5' },
 };
 
-// Region configurations
 const REGION_CONFIG = {
-    japan: { flag: '🇯🇵', name: '日本', baseImpact: 0 },
-    usa: { flag: '🇺🇸', name: 'アメリカ', baseImpact: 0 },
-    china: { flag: '🇨🇳', name: '中国', baseImpact: 0 },
-    eu: { flag: '🇪🇺', name: '欧州連合', baseImpact: 0 },
-    russia: { flag: '🇷🇺', name: 'ロシア', baseImpact: 0 },
-    middle_east: { flag: '🛢️', name: '中東', baseImpact: 0 },
-    india: { flag: '🇮🇳', name: 'インド', baseImpact: 0 },
-    southeast_asia: { flag: '🌏', name: '東南アジア', baseImpact: 0 },
-    africa: { flag: '🌍', name: 'アフリカ', baseImpact: 0 },
-    latam: { flag: '🌎', name: '中南米', baseImpact: 0 },
+    japan: { flag: '🇯🇵', name: '日本' },
+    usa: { flag: '🇺🇸', name: 'アメリカ' },
+    china: { flag: '🇨🇳', name: '中国' },
+    eu: { flag: '🇪🇺', name: '欧州連合' },
+    russia: { flag: '🇷🇺', name: 'ロシア' },
+    middle_east: { flag: '🛢️', name: '中東' },
+    india: { flag: '🇮🇳', name: 'インド' },
+    southeast_asia: { flag: '🌏', name: '東南アジア' },
+    africa: { flag: '🌍', name: 'アフリカ' },
+    latam: { flag: '🌎', name: '中南米' },
 };
-
-// Scenario configurations
-const SCENARIO_CONFIG = {
-    middle_east_conflict: {
-        name: '中東紛争シナリオ',
-        description: '中東での軍事紛争が世界経済とエネルギー供給に与える影響',
-        trigger: { type: 'military_conflict', region: 'middle_east' },
-        steps: [
-            { time: 0, event: '紛争勃発', effects: { oil: 1.4, tension: 0.15 } },
-            { time: 1, event: '原油価格急騰', effects: { oil: 1.1, inflation: 0.5 } },
-            { time: 2, event: '市場混乱', effects: { vix: 1.5, sp500: 0.95 } },
-            { time: 3, event: '政策対応', effects: { interest: 0.25 } },
-            { time: 4, event: '消費者不安', effects: { confidence: -0.1 } },
-            { time: 5, event: '代替エネルギー注目', effects: { renewable: 0.1 } },
-            { time: 6, event: '外交努力', effects: { tension: -0.05 } },
-            { time: 7, event: '供給網適応', effects: { supply_chain: 0.05 } },
-            { time: 8, event: '新均衡形成', effects: {} },
-            { time: 9, event: '長期影響顕在化', effects: { structural: 0.1 } },
-            { time: 10, event: '市場安定化', effects: { vix: 0.8 } },
-            { time: 11, event: '新常態', effects: { new_normal: true } },
-        ],
-        regionImpacts: {
-            japan: { energy: -0.15, inflation: 1.2, trade: -0.08 },
-            usa: { inflation: 0.8, energy: 0.05, military: 0.1 },
-            eu: { energy: -0.20, inflation: 1.5, manufacturing: -0.10 },
-            china: { energy_costs: 0.25, influence: 0.05 },
-            india: { energy_crisis: 0.30, growth: -1.5 },
-        },
-    },
-    global_recession: {
-        name: '世界恐慌シナリオ',
-        description: '金融危機から始まる世界的な景気後退',
-        trigger: { type: 'market_crash', region: 'usa' },
-        steps: [
-            { time: 0, event: '株式暴落', effects: { sp500: 0.7, vix: 3.0 } },
-            { time: 1, event: '金融セクター危機', effects: { banking: -0.3 } },
-            { time: 2, event: '失業急増', effects: { unemployment: 3.0 } },
-            { time: 3, event: '社会不安', effects: { cohesion: -0.2 } },
-            { time: 4, event: '政府介入', effects: { stimulus: true } },
-            { time: 5, event: '国際協調', effects: { cooperation: 0.1 } },
-        ],
-        regionImpacts: {
-            usa: { gdp: -3.0, unemployment: 5.0 },
-            eu: { gdp: -2.5, unemployment: 4.0 },
-            china: { gdp: -1.5, exports: -15 },
-            japan: { gdp: -2.0, exports: -12 },
-        },
-    },
-    climate_crisis: {
-        name: '気候危機シナリオ',
-        description: '気候変動の加速による極端な気象イベント',
-        trigger: { type: 'natural_disaster', region: 'global' },
-        steps: [
-            { time: 0, event: '極端気象増加', effects: { extreme_events: 0.2 } },
-            { time: 1, event: '食料危機', effects: { food_prices: 1.5 } },
-            { time: 2, event: '気候移民', effects: { migration: 0.2 } },
-            { time: 3, event: '経済被害', effects: { gdp: -1.0 } },
-            { time: 4, event: '政策転換', effects: { green_policy: true } },
-            { time: 5, event: '技術加速', effects: { renewable: 0.15 } },
-        ],
-        regionImpacts: {
-            africa: { food_security: -0.30, water_stress: 0.20 },
-            southeast_asia: { flood_damage: 0.5, agriculture: -0.20 },
-            india: { heatwaves: 0.8, water_crisis: 0.5 },
-        },
-    },
-};
-
-// ===============================
-// Initialization
-// ===============================
 
 document.addEventListener('DOMContentLoaded', () => {
-    initializeUI();
-    initializeCharts();
-    initializeEventListeners();
-    updateDisplay();
+    initUI();
+    initCharts();
+    initEvents();
+    resetSimulation();
 });
 
-function initializeUI() {
-    // Initialize domain grid
+function initUI() {
     const domainGrid = document.getElementById('domainGrid');
     domainGrid.innerHTML = '';
-    
-    for (const [id, config] of Object.entries(DOMAIN_CONFIG)) {
-        state.domains[id] = {
-            stability: 0.5 + Math.random() * 0.3,
-            growth: Math.random() * 0.4 - 0.2,
-            risk: Math.random() * 0.3,
-        };
-        
-        const card = createDomainCard(id, config);
+    for (const [id, c] of Object.entries(DOMAIN_CONFIG)) {
+        const card = document.createElement('div');
+        card.className = 'domain-card';
+        card.id = `domain-${id}`;
+        card.innerHTML = `
+            <div class="domain-header"><span class="domain-emoji">${c.emoji}</span><span class="domain-name">${c.name}</span></div>
+            <div class="domain-indicators">
+                <div class="indicator"><span>安定性</span><div class="indicator-bar"><div class="indicator-fill" id="${id}-stability" style="width:50%"></div></div></div>
+                <div class="indicator"><span>成長</span><div class="indicator-bar"><div class="indicator-fill" id="${id}-growth" style="width:50%"></div></div></div>
+            </div>`;
         domainGrid.appendChild(card);
     }
     
-    // Initialize region grid
     const regionGrid = document.getElementById('regionGrid');
     regionGrid.innerHTML = '';
-    
-    for (const [id, config] of Object.entries(REGION_CONFIG)) {
-        const card = createRegionCard(id, config);
+    for (const [id, c] of Object.entries(REGION_CONFIG)) {
+        const card = document.createElement('div');
+        card.className = 'region-card';
+        card.id = `region-${id}`;
+        card.innerHTML = `<div class="region-flag">${c.flag}</div><div class="region-name">${c.name}</div><div class="region-impact" id="${id}-impact">影響:なし</div>`;
         regionGrid.appendChild(card);
     }
 }
 
-function createDomainCard(id, config) {
-    const card = document.createElement('div');
-    card.className = 'domain-card';
-    card.id = `domain-${id}`;
-    card.innerHTML = `
-        <div class="domain-header">
-            <span class="domain-emoji">${config.emoji}</span>
-            <span class="domain-name">${config.name}</span>
-        </div>
-        <div class="domain-indicators">
-            <div class="indicator">
-                <span>安定性</span>
-                <div class="indicator-bar">
-                    <div class="indicator-fill" id="${id}-stability" style="width: 50%"></div>
-                </div>
-            </div>
-            <div class="indicator">
-                <span>成長</span>
-                <div class="indicator-bar">
-                    <div class="indicator-fill" id="${id}-growth" style="width: 50%"></div>
-                </div>
-            </div>
-        </div>
-    `;
-    return card;
-}
-
-function createRegionCard(id, config) {
-    const card = document.createElement('div');
-    card.className = 'region-card';
-    card.id = `region-${id}`;
-    card.innerHTML = `
-        <div class="region-flag">${config.flag}</div>
-        <div class="region-name">${config.name}</div>
-        <div class="region-impact" id="${id}-impact">影響: なし</div>
-    `;
-    return card;
-}
-
-function initializeCharts() {
-    // Oil price time series
+function initCharts() {
     const oilCtx = document.getElementById('oilTimeSeries').getContext('2d');
     window.oilChart = new Chart(oilCtx, {
         type: 'line',
-        data: {
-            labels: [],
-            datasets: [{
-                label: '原油価格 ($)',
-                data: [],
-                borderColor: '#4fc3f7',
-                backgroundColor: 'rgba(79, 195, 247, 0.1)',
-                fill: true,
-                tension: 0.4,
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                y: {
-                    beginAtZero: false,
-                    grid: { color: 'rgba(255,255,255,0.1)' },
-                    ticks: { color: '#a0a0a0' },
-                },
-                x: {
-                    grid: { color: 'rgba(255,255,255,0.1)' },
-                    ticks: { color: '#a0a0a0' },
-                }
-            },
-            plugins: {
-                legend: { display: false }
-            }
-        }
+        data: { labels: [], datasets: [{ label: '原油価格 ($)', data: [], borderColor: '#4fc3f7', backgroundColor: 'rgba(79, 195, 247, 0.1)', fill: true, tension: 0.4 }] },
+        options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: false, grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: '#a0a0a0' } }, x: { grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: '#a0a0a0' } } }, plugins: { legend: { display: false } } }
     });
     
-    // Domain state time series
     const domainCtx = document.getElementById('domainTimeSeries').getContext('2d');
     window.domainChart = new Chart(domainCtx, {
         type: 'line',
-        data: {
-            labels: [],
-            datasets: Object.entries(DOMAIN_CONFIG).map(([id, config]) => ({
-                label: config.name,
-                data: [],
-                borderColor: config.color,
-                backgroundColor: 'transparent',
-                tension: 0.4,
-            }))
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                y: {
-                    min: 0,
-                    max: 1,
-                    grid: { color: 'rgba(255,255,255,0.1)' },
-                    ticks: { color: '#a0a0a0' },
-                },
-                x: {
-                    grid: { color: 'rgba(255,255,255,0.1)' },
-                    ticks: { color: '#a0a0a0' },
-                }
-            },
-            plugins: {
-                legend: {
-                    position: 'bottom',
-                    labels: { color: '#a0a0a0', boxWidth: 12 }
-                }
-            }
-        }
+        data: { labels: [], datasets: Object.entries(DOMAIN_CONFIG).map(([id, c]) => ({ label: c.name, data: [], borderColor: c.color, backgroundColor: 'transparent', tension: 0.4 })) },
+        options: { responsive: true, maintainAspectRatio: false, scales: { y: { min: 0, max: 1, grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: '#a0a0a0' } }, x: { grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: '#a0a0a0' } } }, plugins: { legend: { position: 'bottom', labels: { color: '#a0a0a0', boxWidth: 12 } } } }
     });
 }
 
-function initializeEventListeners() {
+function initEvents() {
     document.getElementById('startBtn').addEventListener('click', startSimulation);
     document.getElementById('pauseBtn').addEventListener('click', pauseSimulation);
     document.getElementById('resetBtn').addEventListener('click', resetSimulation);
-    document.getElementById('stepBtn').addEventListener('click', stepSimulation);
-    document.getElementById('scenario').addEventListener('change', (e) => {
-        state.scenario = e.target.value;
-        resetSimulation();
+    document.getElementById('stepBtn').addEventListener('click', () => runStep());
+    document.getElementById('scenario').addEventListener('change', e => { currentScenario = e.target.value; resetSimulation(); });
+    document.getElementById('speed').addEventListener('input', e => {
+        document.getElementById('speedValue').textContent = `${e.target.value}ms`;
+        if (isRunning) { clearInterval(updateInterval); updateInterval = setInterval(runStep, parseInt(e.target.value)); }
     });
-    document.getElementById('speed').addEventListener('input', (e) => {
-        state.speed = parseInt(e.target.value);
-        document.getElementById('speedValue').textContent = `${state.speed}ms`;
-        if (state.isRunning) {
-            clearInterval(CONFIG.updateInterval);
-            CONFIG.updateInterval = setInterval(simulationStep, state.speed);
-        }
-    });
-}
-
-// ===============================
-// Simulation Control
-// ===============================
-
-function startSimulation() {
-    if (state.isRunning) return;
-    
-    state.isRunning = true;
-    document.getElementById('startBtn').disabled = true;
-    document.getElementById('pauseBtn').disabled = false;
-    
-    CONFIG.updateInterval = setInterval(simulationStep, state.speed);
-}
-
-function pauseSimulation() {
-    if (!state.isRunning) return;
-    
-    state.isRunning = false;
-    clearInterval(CONFIG.updateInterval);
-    
-    document.getElementById('startBtn').disabled = false;
-    document.getElementById('pauseBtn').disabled = true;
 }
 
 function resetSimulation() {
     pauseSimulation();
-    
-    state.currentStep = 0;
-    state.events = [];
-    state.agentResponses = [];
-    state.history = {
-        oilPrices: [],
-        tensionLevels: [],
-        domainStates: {},
-    };
-    
-    // Reset global state
-    state.globalState = {
-        commodities: {
-            oil_brent: 75.0,
-            natural_gas: 2.8,
-            gold: 2000,
-        },
-        financial: {
-            global_inflation: 4.2,
-            vix: 15,
-        },
-        geopolitics: {
-            global_tension: 0.45,
-            nuclear_risk: 0.15,
-        },
-    };
-    
-    // Reset charts
-    window.oilChart.data.labels = [];
-    window.oilChart.data.datasets[0].data = [];
-    window.oilChart.update();
-    
-    window.domainChart.data.labels = [];
-    window.domainChart.data.datasets.forEach(ds => ds.data = []);
-    window.domainChart.update();
-    
-    // Clear timeline
+    simulator = new WorldSimulator();
+    simulator.applyShock(currentScenario);
+    document.getElementById('currentStep').textContent = '0';
     document.getElementById('eventTimeline').innerHTML = '<div class="timeline-empty">シミュレーションを開始してください</div>';
-    
-    // Clear agent responses
     document.getElementById('agentResponses').innerHTML = '<div class="agent-empty">エージェントの反応がここに表示されます</div>';
-    
+    window.oilChart.data.labels = []; window.oilChart.data.datasets[0].data = []; window.oilChart.update();
+    window.domainChart.data.labels = []; window.domainChart.data.datasets.forEach(ds => ds.data = []); window.domainChart.update();
     updateDisplay();
 }
 
-function stepSimulation() {
-    if (state.currentStep >= CONFIG.maxSteps) {
-        pauseSimulation();
-        return;
-    }
-    
-    simulationStep();
+function startSimulation() {
+    if (isRunning) return;
+    isRunning = true;
+    document.getElementById('startBtn').disabled = true;
+    document.getElementById('pauseBtn').disabled = false;
+    updateInterval = setInterval(runStep, parseInt(document.getElementById('speed').value));
 }
 
-function simulationStep() {
-    state.currentStep++;
-    document.getElementById('currentStep').textContent = state.currentStep;
-    
-    const scenario = SCENARIO_CONFIG[state.scenario];
-    const stepData = scenario.steps[Math.min(state.currentStep - 1, scenario.steps.length - 1)];
-    
-    if (state.currentStep <= scenario.steps.length) {
-        // Apply scenario effects
-        applyEffects(stepData.effects);
-        
-        // Add event to timeline
-        addEventToTimeline(state.currentStep, stepData.event, stepData.effects);
-        
-        // Generate agent responses
-        generateAgentResponses(stepData);
-        
-        // Update region impacts
-        updateRegionImpacts(scenario.regionImpacts, state.currentStep);
-    } else {
-        // 継続的なランダムイベントと変動を生成
-        const randomEvent = generateRandomEvent();
-        applyEffects(randomEvent.effects);
-        addEventToTimeline(state.currentStep, randomEvent.name, randomEvent.effects);
-        generateRandomAgentResponses(randomEvent);
-        applyMarketNoise();
-    }
-    
-    // Update charts
+function pauseSimulation() {
+    isRunning = false;
+    clearInterval(updateInterval);
+    document.getElementById('startBtn').disabled = false;
+    document.getElementById('pauseBtn').disabled = true;
+}
+
+function runStep() {
+    simulator.simulateStep();
+    document.getElementById('currentStep').textContent = simulator.step;
     updateCharts();
-    
-    // Update display
     updateDisplay();
+    updateTimeline();
+    updateAgents();
 }
-
-// ランダムイベント生成
-function generateRandomEvent() {
-    const events = [
-        { name: '市場変動', effects: { oil: 1 + (Math.random() - 0.5) * 0.1, vix: 1 + (Math.random() - 0.5) * 0.3 } },
-        { name: '外交会談', effects: { tension: (Math.random() - 0.5) * 0.1 } },
-        { name: '経済指標発表', effects: { inflation: (Math.random() - 0.5) * 0.3 } },
-        { name: '供給網調整', effects: { oil: 1 + (Math.random() - 0.5) * 0.05 } },
-        { name: '気候変動ニュース', effects: { environmental: Math.random() * 0.1 } },
-        { name: '技術革新', effects: { tech: Math.random() * 0.05 } },
-        { name: '金融政策調整', effects: { interest: (Math.random() - 0.5) * 0.25 } },
-        { name: '貿易交渉', effects: { trade: (Math.random() - 0.5) * 0.1 } },
-        { name: 'エネルギー需要変化', effects: { oil: 1 + (Math.random() - 0.5) * 0.08, gas: 1 + (Math.random() - 0.5) * 0.1 } },
-        { name: '地政学的緊張緩和', effects: { tension: -0.02 - Math.random() * 0.03 } },
-        { name: '投機的取引', effects: { vix: 1 + Math.random() * 0.2 } },
-        { name: '消費者信頼感変化', effects: { confidence: (Math.random() - 0.5) * 0.1 } },
-    ];
-    
-    // 約30%の確率でイベント発生
-    if (Math.random() < 0.3) {
-        return events[Math.floor(Math.random() * events.length)];
-    }
-    
-    // 70%は「日常的変動」
-    return { 
-        name: '日常的変動', 
-        effects: { 
-            noise: true 
-        } 
-    };
-}
-
-// 市場ノイズ適用
-function applyMarketNoise() {
-    // 原油価格に小さなランダム変動
-    const oilNoise = (Math.random() - 0.5) * 2;
-    state.globalState.commodities.oil_brent = Math.max(50, Math.min(200, 
-        state.globalState.commodities.oil_brent + oilNoise));
-    
-    // 天然ガス
-    const gasNoise = (Math.random() - 0.5) * 0.1;
-    state.globalState.commodities.natural_gas = Math.max(1, Math.min(10,
-        state.globalState.commodities.natural_gas + gasNoise));
-    
-    // 金価格
-    const goldNoise = (Math.random() - 0.5) * 20;
-    state.globalState.commodities.gold = Math.max(1500, Math.min(2500,
-        state.globalState.commodities.gold + goldNoise));
-    
-    // VIX
-    const vixNoise = (Math.random() - 0.5) * 2;
-    state.globalState.financial.vix = Math.max(10, Math.min(50,
-        state.globalState.financial.vix + vixNoise));
-    
-    // 緊張度に小さな変動
-    const tensionNoise = (Math.random() - 0.5) * 0.02;
-    state.globalState.geopolitics.global_tension = Math.max(0, Math.min(1,
-        state.globalState.geopolitics.global_tension + tensionNoise));
-    
-    // ドメイン状態にランダム変動
-    for (const [domainId, domainState] of Object.entries(state.domains)) {
-        domainState.stability = Math.max(0.1, Math.min(0.9, 
-            domainState.stability + (Math.random() - 0.5) * 0.05));
-        domainState.growth = Math.max(-0.5, Math.min(0.5, 
-            domainState.growth + (Math.random() - 0.5) * 0.08));
-    }
-}
-
-// ランダムイベント時のエージェント反応
-function generateRandomAgentResponses(event) {
-    const responses = [
-        {
-            role: '政府',
-            icon: '🏛️',
-            action: event.effects.tension < 0 ? '緊張緩和を歓迎' : '状況を継続監視',
-            reasoning: event.effects.tension < 0 ? '外交的努力が実を結びつつある' : '現時点では介入の必要なし',
-        },
-        {
-            role: '消費者',
-            icon: '👥',
-            action: Math.random() > 0.5 ? '消費パターンを微調整' : '通常の消費活動を継続',
-            reasoning: Math.random() > 0.5 ? '物価動向を注視中' : '大きな変化は感じない',
-        },
-        {
-            role: '投資家',
-            icon: '💰',
-            action: Math.random() > 0.5 ? 'ポジションを小幅調整' : '現在のポジションを維持',
-            reasoning: Math.random() > 0.5 ? '市場センチメントを分析中' : '明確なシグナルなし',
-        },
-    ];
-    
-    // 30%の確率でのみエージェント反応を追加（スパム防止）
-    if (Math.random() < 0.3) {
-        addAgentResponsesToUI(responses);
-    }
-}
-
-function addAgentResponsesToUI(responses) {
-    const container = document.getElementById('agentResponses');
-    
-    // Remove empty message
-    const emptyMsg = container.querySelector('.agent-empty');
-    if (emptyMsg) emptyMsg.remove();
-    
-    responses.forEach(response => {
-        const card = document.createElement('div');
-        card.className = 'agent-response-card fade-in';
-        card.innerHTML = `
-            <div class="agent-header">
-                <span class="agent-icon">${response.icon}</span>
-                <span class="agent-role">${response.role}</span>
-            </div>
-            <div class="agent-action">
-                <div class="action-label">アクション</div>
-                <div class="action-value">${response.action}</div>
-            </div>
-            <div class="agent-reasoning">"${response.reasoning}"</div>
-        `;
-        container.insertBefore(card, container.firstChild);
-    });
-    
-    // Keep only last 6 responses
-    while (container.children.length > 6) {
-        container.removeChild(container.lastChild);
-    }
-}
-
-// ===============================
-// Effect Application
-// ===============================
-
-function applyEffects(effects) {
-    if (!effects || effects.noise) return;
-    
-    // Oil price
-    if (effects.oil) {
-        const oldValue = state.globalState.commodities.oil_brent;
-        state.globalState.commodities.oil_brent = Math.max(50, Math.min(200,
-            state.globalState.commodities.oil_brent * effects.oil));
-        animateValue('oilBrent', oldValue, state.globalState.commodities.oil_brent);
-    }
-    
-    // Gas price
-    if (effects.gas) {
-        state.globalState.commodities.natural_gas = Math.max(1, Math.min(10,
-            state.globalState.commodities.natural_gas * effects.gas));
-    }
-    
-    // Tension
-    if (effects.tension) {
-        state.globalState.geopolitics.global_tension = Math.min(1, Math.max(0,
-            state.globalState.geopolitics.global_tension + effects.tension));
-    }
-    
-    // Inflation
-    if (effects.inflation) {
-        const oldInflation = state.globalState.financial.global_inflation;
-        state.globalState.financial.global_inflation = Math.max(0, Math.min(20,
-            state.globalState.financial.global_inflation + effects.inflation));
-        animateValue('globalInflation', oldInflation, state.globalState.financial.global_inflation);
-    }
-    
-    // VIX
-    if (effects.vix) {
-        state.globalState.financial.vix = Math.max(10, Math.min(80,
-            state.globalState.financial.vix * effects.vix));
-    }
-    
-    // Interest rate
-    if (effects.interest) {
-        state.globalState.financial.us_interest_rate = Math.max(0, Math.min(10,
-            state.globalState.financial.us_interest_rate + effects.interest));
-    }
-    
-    // Domain-specific effects
-    if (effects.environmental) {
-        state.domains.environment.stability -= effects.environmental * 0.1;
-    }
-    if (effects.tech) {
-        state.domains.technology.growth += effects.tech;
-    }
-    if (effects.trade) {
-        state.domains.economy.growth += effects.trade * 0.5;
-    }
-    if (effects.confidence) {
-        state.domains.society.stability += effects.confidence * 0.3;
-    }
-    
-    // Update domain states with variation
-    for (const [domainId, domainState] of Object.entries(state.domains)) {
-        // Add some random variation
-        domainState.stability = Math.max(0.1, Math.min(0.9, 
-            domainState.stability + (Math.random() - 0.5) * 0.05));
-        domainState.growth = Math.max(-0.5, Math.min(0.5, 
-            domainState.growth + (Math.random() - 0.5) * 0.08));
-    }
-}
-
-function animateValue(elementId, oldValue, newValue) {
-    const element = document.getElementById(elementId);
-    if (!element) return;
-    
-    const card = element.closest('.metric-card');
-    if (card) {
-        card.classList.add('updating');
-        setTimeout(() => card.classList.remove('updating'), 500);
-    }
-    
-    element.textContent = newValue.toFixed(2);
-}
-
-// ===============================
-// Timeline & Events
-// ===============================
-
-function addEventToTimeline(step, eventName, effects) {
-    const timeline = document.getElementById('eventTimeline');
-    
-    // Remove empty message if present
-    const emptyMsg = timeline.querySelector('.timeline-empty');
-    if (emptyMsg) emptyMsg.remove();
-    
-    // 日常的変動は表示をスキップ（タイムラインが溢れるのを防止）
-    if (eventName === '日常的変動') {
-        return;
-    }
-    
-    const eventDiv = document.createElement('div');
-    eventDiv.className = 'timeline-event';
-    if (step <= 2) eventDiv.classList.add('major');
-    
-    const effectsList = Object.entries(effects || {})
-        .filter(([k, v]) => k !== 'noise')  // noiseは表示しない
-        .map(([k, v]) => {
-            if (typeof v === 'number') {
-                if (v > 1) return `${k}: ×${v.toFixed(2)}`;
-                if (v < 1 && v > 0) return `${k}: ${(v * 100).toFixed(0)}%`;
-                return `${k}: ${v > 0 ? '+' : ''}${(v * 100).toFixed(1)}%`;
-            }
-            return `${k}: ${v}`;
-        })
-        .join(', ');
-    
-    eventDiv.innerHTML = `
-        <div class="event-time">ステップ ${step}</div>
-        <div class="event-name">${eventName}</div>
-        <div class="event-effects">${effectsList || '微細な変動'}</div>
-    `;
-    
-    timeline.appendChild(eventDiv);
-    
-    // 最新のイベントが見えるようにスクロール
-    timeline.scrollLeft = timeline.scrollWidth;
-    
-    // Keep only last 20 events in timeline
-    while (timeline.children.length > 20) {
-        timeline.removeChild(timeline.firstChild);
-    }
-    
-    state.events.push({ step, name: eventName, effects });
-    
-    // Keep only last 50 events in state
-    if (state.events.length > 50) {
-        state.events = state.events.slice(-50);
-    }
-}
-
-// ===============================
-// Agent Responses
-// ===============================
-
-function generateAgentResponses(stepData) {
-    const responses = [
-        {
-            role: '政府',
-            icon: '🏛️',
-            action: getGovernmentAction(stepData),
-            reasoning: getGovernmentReasoning(stepData),
-        },
-        {
-            role: '消費者',
-            icon: '👥',
-            action: getConsumerAction(stepData),
-            reasoning: getConsumerReasoning(stepData),
-        },
-        {
-            role: '投資家',
-            icon: '💰',
-            action: getInvestorAction(stepData),
-            reasoning: getInvestorReasoning(stepData),
-        },
-    ];
-    
-    const container = document.getElementById('agentResponses');
-    
-    // Remove empty message
-    const emptyMsg = container.querySelector('.agent-empty');
-    if (emptyMsg) emptyMsg.remove();
-    
-    responses.forEach(response => {
-        const card = document.createElement('div');
-        card.className = 'agent-response-card fade-in';
-        card.innerHTML = `
-            <div class="agent-header">
-                <span class="agent-icon">${response.icon}</span>
-                <span class="agent-role">${response.role}</span>
-            </div>
-            <div class="agent-action">
-                <div class="action-label">アクション</div>
-                <div class="action-value">${response.action}</div>
-            </div>
-            <div class="agent-reasoning">"${response.reasoning}"</div>
-        `;
-        container.insertBefore(card, container.firstChild);
-    });
-    
-    // Keep only last 6 responses
-    while (container.children.length > 6) {
-        container.removeChild(container.lastChild);
-    }
-}
-
-function getGovernmentAction(stepData) {
-    if (stepData.effects?.oil > 1.2) return '戦略備蓄放出を検討';
-    if (stepData.effects?.vix > 2) return '市場安定化措置を実施';
-    if (stepData.effects?.tension > 0.1) return '外交チャネルを通じて調整';
-    return '状況を監視中';
-}
-
-function getGovernmentReasoning(stepData) {
-    if (stepData.effects?.oil > 1.2) return 'エネルギー安全保障が優先事項';
-    if (stepData.effects?.vix > 2) return '市場の信頼回復が必要';
-    return '現時点では介入の必要なし';
-}
-
-function getConsumerAction(stepData) {
-    if (stepData.effects?.oil > 1.2) return 'エネルギー消費を削減';
-    if (stepData.effects?.inflation > 0.3) return '支出を見直し';
-    return '通常の消費活動を継続';
-}
-
-function getConsumerReasoning(stepData) {
-    if (stepData.effects?.oil > 1.2) return '光熱費の上昇が懸念';
-    if (stepData.effects?.inflation > 0.3) return '物価上昇に備えて節約';
-    return '大きな変化は感じない';
-}
-
-function getInvestorAction(stepData) {
-    if (stepData.effects?.vix > 2) return '安全資産へシフト';
-    if (stepData.effects?.sp500 < 1) return 'ポートフォリオを再調整';
-    if (stepData.effects?.oil > 1.2) return 'エネルギー株に関心';
-    return '現在のポジションを維持';
-}
-
-function getInvestorReasoning(stepData) {
-    if (stepData.effects?.vix > 2) return 'ボラティリティが高すぎる';
-    if (stepData.effects?.sp500 < 1) return 'リスク管理が優先';
-    if (stepData.effects?.oil > 1.2) return 'セクターローテーションの機会';
-    return '明確なシグナルなし';
-}
-
-// ===============================
-// Region Impacts
-// ===============================
-
-function updateRegionImpacts(impacts, step) {
-    const impactStrength = Math.min(1, step / 6);
-    
-    for (const [regionId, regionImpacts] of Object.entries(impacts)) {
-        const card = document.getElementById(`region-${regionId}`);
-        if (!card) continue;
-        
-        const impactElement = document.getElementById(`${regionId}-impact`);
-        if (!impactElement) continue;
-        
-        const totalImpact = Object.values(regionImpacts).reduce((a, b) => Math.abs(a) + Math.abs(b), 0);
-        const normalizedImpact = totalImpact * impactStrength;
-        
-        // ランダムな変動を追加
-        const randomFluctuation = (Math.random() - 0.5) * 0.3;
-        const finalImpact = normalizedImpact + randomFluctuation;
-        
-        card.classList.remove('impact-high', 'impact-medium', 'impact-low');
-        
-        if (finalImpact > 1.2) {
-            card.classList.add('impact-high');
-            impactElement.textContent = `影響: 大きい`;
-        } else if (finalImpact > 0.6) {
-            card.classList.add('impact-medium');
-            impactElement.textContent = `影響: 中程度`;
-        } else if (finalImpact > 0.2) {
-            card.classList.add('impact-low');
-            impactElement.textContent = `影響: 小`;
-        } else {
-            impactElement.textContent = `影響: なし`;
-        }
-    }
-    
-    // シナリオ外の地域にもランダムな影響を適用
-    for (const [regionId, config] of Object.entries(REGION_CONFIG)) {
-        if (!impacts[regionId]) {
-            const card = document.getElementById(`region-${regionId}`);
-            if (!card) continue;
-            
-            const impactElement = document.getElementById(`${regionId}-impact`);
-            if (!impactElement) continue;
-            
-            // ランダムな小さな影響
-            const randomImpact = Math.random();
-            
-            card.classList.remove('impact-high', 'impact-medium', 'impact-low');
-            
-            if (randomImpact > 0.85) {
-                card.classList.add('impact-medium');
-                impactElement.textContent = `影響: 中程度`;
-            } else if (randomImpact > 0.6) {
-                card.classList.add('impact-low');
-                impactElement.textContent = `影響: 小`;
-            } else {
-                impactElement.textContent = `影響: なし`;
-            }
-        }
-    }
-}
-
-// ===============================
-// Charts Update
-// ===============================
-
-const CHART_CONFIG = {
-    maxDataPoints: 50,  // チャートに表示する最大データポイント数
-};
 
 function updateCharts() {
-    // Update oil chart
-    window.oilChart.data.labels.push(`Step ${state.currentStep}`);
-    window.oilChart.data.datasets[0].data.push(state.globalState.commodities.oil_brent);
-    
-    // スライディングウィンドウ: 古いデータを削除
-    if (window.oilChart.data.labels.length > CHART_CONFIG.maxDataPoints) {
-        window.oilChart.data.labels.shift();
-        window.oilChart.data.datasets[0].data.shift();
-    }
-    
+    window.oilChart.data.labels.push(simulator.step);
+    window.oilChart.data.datasets[0].data.push(simulator.state.global.commodities.oil_brent);
+    if (window.oilChart.data.labels.length > 50) { window.oilChart.data.labels.shift(); window.oilChart.data.datasets[0].data.shift(); }
     window.oilChart.update('none');
     
-    // Update domain chart
-    window.domainChart.data.labels.push(`Step ${state.currentStep}`);
-    
+    window.domainChart.data.labels.push(simulator.step);
     let i = 0;
-    for (const [domainId, domainState] of Object.entries(state.domains)) {
-        window.domainChart.data.datasets[i].data.push(domainState.stability);
-        
-        // スライディングウィンドウ
-        if (window.domainChart.data.datasets[i].data.length > CHART_CONFIG.maxDataPoints) {
-            window.domainChart.data.datasets[i].data.shift();
-        }
+    for (const s of Object.values(simulator.state.domains)) {
+        window.domainChart.data.datasets[i].data.push(s.stability);
+        if (window.domainChart.data.datasets[i].data.length > 50) window.domainChart.data.datasets[i].data.shift();
         i++;
     }
-    
-    // ラベルも同期
-    if (window.domainChart.data.labels.length > CHART_CONFIG.maxDataPoints) {
-        window.domainChart.data.labels.shift();
-    }
-    
+    if (window.domainChart.data.labels.length > 50) window.domainChart.data.labels.shift();
     window.domainChart.update('none');
 }
 
-// ===============================
-// Display Update
-// ===============================
-
 function updateDisplay() {
-    // Update metrics
-    document.getElementById('oilBrent').textContent = 
-        state.globalState.commodities.oil_brent.toFixed(2);
-    document.getElementById('naturalGas').textContent = 
-        state.globalState.commodities.natural_gas.toFixed(2);
-    document.getElementById('gold').textContent = 
-        state.globalState.commodities.gold.toFixed(0);
-    document.getElementById('globalInflation').textContent = 
-        state.globalState.financial.global_inflation.toFixed(1);
-    document.getElementById('vix').textContent = 
-        state.globalState.financial.vix.toFixed(0);
-    document.getElementById('usInterestRate').textContent = 
-        state.globalState.financial.us_interest_rate.toFixed(2);
+    const g = simulator.state.global;
+    document.getElementById('oilBrent').textContent = g.commodities.oil_brent.toFixed(2);
+    document.getElementById('naturalGas').textContent = g.commodities.natural_gas.toFixed(2);
+    document.getElementById('gold').textContent = g.commodities.gold.toFixed(0);
+    document.getElementById('globalInflation').textContent = g.financial.global_inflation.toFixed(1);
+    document.getElementById('vix').textContent = g.financial.vix.toFixed(0);
+    document.getElementById('usInterestRate').textContent = (g.financial.us_interest_rate * 100).toFixed(2);
     
-    // Update tension bars
-    const tension = state.globalState.geopolitics.global_tension;
-    document.getElementById('tensionBar').style.width = `${tension * 100}%`;
-    document.getElementById('tensionValue').textContent = `${(tension * 100).toFixed(0)}%`;
+    const t = g.geopolitics.global_tension;
+    document.getElementById('tensionBar').style.width = `${t * 100}%`;
+    document.getElementById('tensionValue').textContent = `${(t * 100).toFixed(0)}%`;
     
-    const nuclear = state.globalState.geopolitics.nuclear_risk;
-    document.getElementById('nuclearBar').style.width = `${nuclear * 100}%`;
-    document.getElementById('nuclearValue').textContent = `${(nuclear * 100).toFixed(0)}%`;
+    const n = g.geopolitics.nuclear_risk;
+    document.getElementById('nuclearBar').style.width = `${n * 100}%`;
+    document.getElementById('nuclearValue').textContent = `${(n * 100).toFixed(0)}%`;
     
-    // Update domain indicators
-    for (const [domainId, domainState] of Object.entries(state.domains)) {
-        const stabilityEl = document.getElementById(`${domainId}-stability`);
-        const growthEl = document.getElementById(`${domainId}-growth`);
-        
-        if (stabilityEl) {
-            stabilityEl.style.width = `${domainState.stability * 100}%`;
-        }
-        if (growthEl) {
-            const growthWidth = 50 + domainState.growth * 50;
-            growthEl.style.width = `${Math.max(0, Math.min(100, growthWidth))}%`;
-        }
+    for (const [id, s] of Object.entries(simulator.state.domains)) {
+        const st = document.getElementById(`${id}-stability`);
+        const gr = document.getElementById(`${id}-growth`);
+        if (st) st.style.width = `${s.stability * 100}%`;
+        if (gr) gr.style.width = `${Math.max(0, Math.min(100, 50 + s.growth * 100))}%`;
     }
-    
-    // Update metric changes
-    updateMetricChanges();
 }
 
-function updateMetricChanges() {
-    const oilChange = ((state.globalState.commodities.oil_brent / 75.0) - 1) * 100;
-    const oilChangeEl = document.querySelector('#oil-brent .metric-change');
-    if (oilChangeEl) {
-        oilChangeEl.textContent = `${oilChange >= 0 ? '+' : ''}${oilChange.toFixed(1)}%`;
-        oilChangeEl.className = `metric-change ${oilChange >= 0 ? 'positive' : 'negative'}`;
-    }
+function updateTimeline() {
+    const tl = document.getElementById('eventTimeline');
+    tl.innerHTML = '';
+    simulator.events.slice(-8).forEach(e => {
+        const d = document.createElement('div');
+        d.className = 'timeline-event';
+        if (e.step <= 3) d.classList.add('major');
+        d.innerHTML = `<div class="event-time">ステップ ${e.step}</div><div class="event-name">${e.name}</div><div class="event-effects">${Object.entries(e.data || {}).map(([k, v]) => `${k}:${v}`).join(', ') || '—'}</div>`;
+        tl.appendChild(d);
+    });
+    tl.scrollLeft = tl.scrollWidth;
+}
+
+function updateAgents() {
+    const c = document.getElementById('agentResponses');
+    c.innerHTML = '';
+    const icons = { government: '🏛️', central_bank: '🏦', investor: '💰', consumer: '👥', energy_producer: '🛢️' };
+    const recent = [];
+    simulator.agents.forEach(a => {
+        if (a.history.length > 0) {
+            const last = a.history[a.history.length - 1];
+            if (last && !['observe', 'hold', 'maintain'].includes(last.action)) {
+                recent.push({ name: a.name, type: a.type, action: last });
+            }
+        }
+    });
+    recent.slice(0, 3).forEach(a => {
+        const card = document.createElement('div');
+        card.className = 'agent-response-card fade-in';
+        card.innerHTML = `<div class="agent-header"><span class="agent-icon">${icons[a.type] || '🤖'}</span><span class="agent-role">${a.name}</span></div><div class="agent-action"><div class="action-label">アクション</div><div class="action-value">${a.action.reason || a.action.action}</div></div>`;
+        c.appendChild(card);
+    });
 }
