@@ -10,7 +10,7 @@
 
 const CONFIG = {
     defaultSpeed: 500,
-    maxSteps: 12,
+    maxSteps: 9999,  // 無制限に近い
     updateInterval: null,
 };
 
@@ -408,8 +408,8 @@ function simulationStep() {
     const scenario = SCENARIO_CONFIG[state.scenario];
     const stepData = scenario.steps[Math.min(state.currentStep - 1, scenario.steps.length - 1)];
     
-    if (stepData) {
-        // Apply effects
+    if (state.currentStep <= scenario.steps.length) {
+        // Apply scenario effects
         applyEffects(stepData.effects);
         
         // Add event to timeline
@@ -420,6 +420,13 @@ function simulationStep() {
         
         // Update region impacts
         updateRegionImpacts(scenario.regionImpacts, state.currentStep);
+    } else {
+        // 継続的なランダムイベントと変動を生成
+        const randomEvent = generateRandomEvent();
+        applyEffects(randomEvent.effects);
+        addEventToTimeline(state.currentStep, randomEvent.name, randomEvent.effects);
+        generateRandomAgentResponses(randomEvent);
+        applyMarketNoise();
     }
     
     // Update charts
@@ -429,46 +436,200 @@ function simulationStep() {
     updateDisplay();
 }
 
+// ランダムイベント生成
+function generateRandomEvent() {
+    const events = [
+        { name: '市場変動', effects: { oil: 1 + (Math.random() - 0.5) * 0.1, vix: 1 + (Math.random() - 0.5) * 0.3 } },
+        { name: '外交会談', effects: { tension: (Math.random() - 0.5) * 0.1 } },
+        { name: '経済指標発表', effects: { inflation: (Math.random() - 0.5) * 0.3 } },
+        { name: '供給網調整', effects: { oil: 1 + (Math.random() - 0.5) * 0.05 } },
+        { name: '気候変動ニュース', effects: { environmental: Math.random() * 0.1 } },
+        { name: '技術革新', effects: { tech: Math.random() * 0.05 } },
+        { name: '金融政策調整', effects: { interest: (Math.random() - 0.5) * 0.25 } },
+        { name: '貿易交渉', effects: { trade: (Math.random() - 0.5) * 0.1 } },
+        { name: 'エネルギー需要変化', effects: { oil: 1 + (Math.random() - 0.5) * 0.08, gas: 1 + (Math.random() - 0.5) * 0.1 } },
+        { name: '地政学的緊張緩和', effects: { tension: -0.02 - Math.random() * 0.03 } },
+        { name: '投機的取引', effects: { vix: 1 + Math.random() * 0.2 } },
+        { name: '消費者信頼感変化', effects: { confidence: (Math.random() - 0.5) * 0.1 } },
+    ];
+    
+    // 約30%の確率でイベント発生
+    if (Math.random() < 0.3) {
+        return events[Math.floor(Math.random() * events.length)];
+    }
+    
+    // 70%は「日常的変動」
+    return { 
+        name: '日常的変動', 
+        effects: { 
+            noise: true 
+        } 
+    };
+}
+
+// 市場ノイズ適用
+function applyMarketNoise() {
+    // 原油価格に小さなランダム変動
+    const oilNoise = (Math.random() - 0.5) * 2;
+    state.globalState.commodities.oil_brent = Math.max(50, Math.min(200, 
+        state.globalState.commodities.oil_brent + oilNoise));
+    
+    // 天然ガス
+    const gasNoise = (Math.random() - 0.5) * 0.1;
+    state.globalState.commodities.natural_gas = Math.max(1, Math.min(10,
+        state.globalState.commodities.natural_gas + gasNoise));
+    
+    // 金価格
+    const goldNoise = (Math.random() - 0.5) * 20;
+    state.globalState.commodities.gold = Math.max(1500, Math.min(2500,
+        state.globalState.commodities.gold + goldNoise));
+    
+    // VIX
+    const vixNoise = (Math.random() - 0.5) * 2;
+    state.globalState.financial.vix = Math.max(10, Math.min(50,
+        state.globalState.financial.vix + vixNoise));
+    
+    // 緊張度に小さな変動
+    const tensionNoise = (Math.random() - 0.5) * 0.02;
+    state.globalState.geopolitics.global_tension = Math.max(0, Math.min(1,
+        state.globalState.geopolitics.global_tension + tensionNoise));
+    
+    // ドメイン状態にランダム変動
+    for (const [domainId, domainState] of Object.entries(state.domains)) {
+        domainState.stability = Math.max(0.1, Math.min(0.9, 
+            domainState.stability + (Math.random() - 0.5) * 0.05));
+        domainState.growth = Math.max(-0.5, Math.min(0.5, 
+            domainState.growth + (Math.random() - 0.5) * 0.08));
+    }
+}
+
+// ランダムイベント時のエージェント反応
+function generateRandomAgentResponses(event) {
+    const responses = [
+        {
+            role: '政府',
+            icon: '🏛️',
+            action: event.effects.tension < 0 ? '緊張緩和を歓迎' : '状況を継続監視',
+            reasoning: event.effects.tension < 0 ? '外交的努力が実を結びつつある' : '現時点では介入の必要なし',
+        },
+        {
+            role: '消費者',
+            icon: '👥',
+            action: Math.random() > 0.5 ? '消費パターンを微調整' : '通常の消費活動を継続',
+            reasoning: Math.random() > 0.5 ? '物価動向を注視中' : '大きな変化は感じない',
+        },
+        {
+            role: '投資家',
+            icon: '💰',
+            action: Math.random() > 0.5 ? 'ポジションを小幅調整' : '現在のポジションを維持',
+            reasoning: Math.random() > 0.5 ? '市場センチメントを分析中' : '明確なシグナルなし',
+        },
+    ];
+    
+    // 30%の確率でのみエージェント反応を追加（スパム防止）
+    if (Math.random() < 0.3) {
+        addAgentResponsesToUI(responses);
+    }
+}
+
+function addAgentResponsesToUI(responses) {
+    const container = document.getElementById('agentResponses');
+    
+    // Remove empty message
+    const emptyMsg = container.querySelector('.agent-empty');
+    if (emptyMsg) emptyMsg.remove();
+    
+    responses.forEach(response => {
+        const card = document.createElement('div');
+        card.className = 'agent-response-card fade-in';
+        card.innerHTML = `
+            <div class="agent-header">
+                <span class="agent-icon">${response.icon}</span>
+                <span class="agent-role">${response.role}</span>
+            </div>
+            <div class="agent-action">
+                <div class="action-label">アクション</div>
+                <div class="action-value">${response.action}</div>
+            </div>
+            <div class="agent-reasoning">"${response.reasoning}"</div>
+        `;
+        container.insertBefore(card, container.firstChild);
+    });
+    
+    // Keep only last 6 responses
+    while (container.children.length > 6) {
+        container.removeChild(container.lastChild);
+    }
+}
+
 // ===============================
 // Effect Application
 // ===============================
 
 function applyEffects(effects) {
-    if (!effects) return;
+    if (!effects || effects.noise) return;
     
     // Oil price
     if (effects.oil) {
         const oldValue = state.globalState.commodities.oil_brent;
-        state.globalState.commodities.oil_brent *= effects.oil;
+        state.globalState.commodities.oil_brent = Math.max(50, Math.min(200,
+            state.globalState.commodities.oil_brent * effects.oil));
         animateValue('oilBrent', oldValue, state.globalState.commodities.oil_brent);
+    }
+    
+    // Gas price
+    if (effects.gas) {
+        state.globalState.commodities.natural_gas = Math.max(1, Math.min(10,
+            state.globalState.commodities.natural_gas * effects.gas));
     }
     
     // Tension
     if (effects.tension) {
-        state.globalState.geopolitics.global_tension = Math.min(1, 
-            state.globalState.geopolitics.global_tension + effects.tension);
+        state.globalState.geopolitics.global_tension = Math.min(1, Math.max(0,
+            state.globalState.geopolitics.global_tension + effects.tension));
     }
     
     // Inflation
     if (effects.inflation) {
-        state.globalState.financial.global_inflation += effects.inflation;
-        animateValue('globalInflation', 
-            state.globalState.financial.global_inflation - effects.inflation,
-            state.globalState.financial.global_inflation);
+        const oldInflation = state.globalState.financial.global_inflation;
+        state.globalState.financial.global_inflation = Math.max(0, Math.min(20,
+            state.globalState.financial.global_inflation + effects.inflation));
+        animateValue('globalInflation', oldInflation, state.globalState.financial.global_inflation);
     }
     
     // VIX
     if (effects.vix) {
-        state.globalState.financial.vix *= effects.vix;
+        state.globalState.financial.vix = Math.max(10, Math.min(80,
+            state.globalState.financial.vix * effects.vix));
     }
     
-    // Update domain states
+    // Interest rate
+    if (effects.interest) {
+        state.globalState.financial.us_interest_rate = Math.max(0, Math.min(10,
+            state.globalState.financial.us_interest_rate + effects.interest));
+    }
+    
+    // Domain-specific effects
+    if (effects.environmental) {
+        state.domains.environment.stability -= effects.environmental * 0.1;
+    }
+    if (effects.tech) {
+        state.domains.technology.growth += effects.tech;
+    }
+    if (effects.trade) {
+        state.domains.economy.growth += effects.trade * 0.5;
+    }
+    if (effects.confidence) {
+        state.domains.society.stability += effects.confidence * 0.3;
+    }
+    
+    // Update domain states with variation
     for (const [domainId, domainState] of Object.entries(state.domains)) {
         // Add some random variation
-        domainState.stability = Math.max(0, Math.min(1, 
-            domainState.stability + (Math.random() - 0.5) * 0.1));
-        domainState.growth = Math.max(-1, Math.min(1, 
-            domainState.growth + (Math.random() - 0.5) * 0.15));
+        domainState.stability = Math.max(0.1, Math.min(0.9, 
+            domainState.stability + (Math.random() - 0.5) * 0.05));
+        domainState.growth = Math.max(-0.5, Math.min(0.5, 
+            domainState.growth + (Math.random() - 0.5) * 0.08));
     }
 }
 
@@ -496,24 +657,49 @@ function addEventToTimeline(step, eventName, effects) {
     const emptyMsg = timeline.querySelector('.timeline-empty');
     if (emptyMsg) emptyMsg.remove();
     
+    // 日常的変動は表示をスキップ（タイムラインが溢れるのを防止）
+    if (eventName === '日常的変動') {
+        return;
+    }
+    
     const eventDiv = document.createElement('div');
     eventDiv.className = 'timeline-event';
     if (step <= 2) eventDiv.classList.add('major');
     
     const effectsList = Object.entries(effects || {})
-        .map(([k, v]) => `${k}: ${typeof v === 'number' ? (v > 1 ? `×${v}` : `${(v * 100).toFixed(0)}%`) : v}`)
+        .filter(([k, v]) => k !== 'noise')  // noiseは表示しない
+        .map(([k, v]) => {
+            if (typeof v === 'number') {
+                if (v > 1) return `${k}: ×${v.toFixed(2)}`;
+                if (v < 1 && v > 0) return `${k}: ${(v * 100).toFixed(0)}%`;
+                return `${k}: ${v > 0 ? '+' : ''}${(v * 100).toFixed(1)}%`;
+            }
+            return `${k}: ${v}`;
+        })
         .join(', ');
     
     eventDiv.innerHTML = `
         <div class="event-time">ステップ ${step}</div>
         <div class="event-name">${eventName}</div>
-        <div class="event-effects">${effectsList || '影響なし'}</div>
+        <div class="event-effects">${effectsList || '微細な変動'}</div>
     `;
     
     timeline.appendChild(eventDiv);
+    
+    // 最新のイベントが見えるようにスクロール
     timeline.scrollLeft = timeline.scrollWidth;
     
+    // Keep only last 20 events in timeline
+    while (timeline.children.length > 20) {
+        timeline.removeChild(timeline.firstChild);
+    }
+    
     state.events.push({ step, name: eventName, effects });
+    
+    // Keep only last 50 events in state
+    if (state.events.length > 50) {
+        state.events = state.events.slice(-50);
+    }
 }
 
 // ===============================
@@ -627,17 +813,49 @@ function updateRegionImpacts(impacts, step) {
         const totalImpact = Object.values(regionImpacts).reduce((a, b) => Math.abs(a) + Math.abs(b), 0);
         const normalizedImpact = totalImpact * impactStrength;
         
+        // ランダムな変動を追加
+        const randomFluctuation = (Math.random() - 0.5) * 0.3;
+        const finalImpact = normalizedImpact + randomFluctuation;
+        
         card.classList.remove('impact-high', 'impact-medium', 'impact-low');
         
-        if (normalizedImpact > 1) {
+        if (finalImpact > 1.2) {
             card.classList.add('impact-high');
             impactElement.textContent = `影響: 大きい`;
-        } else if (normalizedImpact > 0.5) {
+        } else if (finalImpact > 0.6) {
             card.classList.add('impact-medium');
             impactElement.textContent = `影響: 中程度`;
-        } else if (normalizedImpact > 0) {
+        } else if (finalImpact > 0.2) {
             card.classList.add('impact-low');
             impactElement.textContent = `影響: 小`;
+        } else {
+            impactElement.textContent = `影響: なし`;
+        }
+    }
+    
+    // シナリオ外の地域にもランダムな影響を適用
+    for (const [regionId, config] of Object.entries(REGION_CONFIG)) {
+        if (!impacts[regionId]) {
+            const card = document.getElementById(`region-${regionId}`);
+            if (!card) continue;
+            
+            const impactElement = document.getElementById(`${regionId}-impact`);
+            if (!impactElement) continue;
+            
+            // ランダムな小さな影響
+            const randomImpact = Math.random();
+            
+            card.classList.remove('impact-high', 'impact-medium', 'impact-low');
+            
+            if (randomImpact > 0.85) {
+                card.classList.add('impact-medium');
+                impactElement.textContent = `影響: 中程度`;
+            } else if (randomImpact > 0.6) {
+                card.classList.add('impact-low');
+                impactElement.textContent = `影響: 小`;
+            } else {
+                impactElement.textContent = `影響: なし`;
+            }
         }
     }
 }
@@ -646,10 +864,21 @@ function updateRegionImpacts(impacts, step) {
 // Charts Update
 // ===============================
 
+const CHART_CONFIG = {
+    maxDataPoints: 50,  // チャートに表示する最大データポイント数
+};
+
 function updateCharts() {
     // Update oil chart
     window.oilChart.data.labels.push(`Step ${state.currentStep}`);
     window.oilChart.data.datasets[0].data.push(state.globalState.commodities.oil_brent);
+    
+    // スライディングウィンドウ: 古いデータを削除
+    if (window.oilChart.data.labels.length > CHART_CONFIG.maxDataPoints) {
+        window.oilChart.data.labels.shift();
+        window.oilChart.data.datasets[0].data.shift();
+    }
+    
     window.oilChart.update('none');
     
     // Update domain chart
@@ -658,8 +887,19 @@ function updateCharts() {
     let i = 0;
     for (const [domainId, domainState] of Object.entries(state.domains)) {
         window.domainChart.data.datasets[i].data.push(domainState.stability);
+        
+        // スライディングウィンドウ
+        if (window.domainChart.data.datasets[i].data.length > CHART_CONFIG.maxDataPoints) {
+            window.domainChart.data.datasets[i].data.shift();
+        }
         i++;
     }
+    
+    // ラベルも同期
+    if (window.domainChart.data.labels.length > CHART_CONFIG.maxDataPoints) {
+        window.domainChart.data.labels.shift();
+    }
+    
     window.domainChart.update('none');
 }
 
