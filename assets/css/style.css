@@ -49,6 +49,12 @@ body {
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+    animation: titleGlow 3s ease-in-out infinite;
+}
+
+@keyframes titleGlow {
+    0%, 100% { filter: brightness(1); }
+    50% { filter: brightness(1.2); }
 }
 
 /* Navigation */
@@ -173,6 +179,28 @@ h2 {
     color: #888;
 }
 
+.loading {
+    display: inline-block;
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 1; }
+}
+
+.error {
+    color: #e57373;
+    background: rgba(229, 115, 115, 0.1);
+    border-radius: 8px;
+    padding: 1rem 1.5rem;
+}
+
+.no-activities {
+    color: #888;
+    font-style: italic;
+}
+
 /* Welcome Section */
 .welcome {
     padding: 2rem;
@@ -243,6 +271,24 @@ h2 {
     border-radius: 12px;
     transition: all 0.3s ease;
     border: 1px solid var(--border-color);
+    animation: fadeInUp 0.5s ease forwards;
+    opacity: 0;
+}
+
+.work-card:nth-child(1) { animation-delay: 0.1s; }
+.work-card:nth-child(2) { animation-delay: 0.2s; }
+.work-card:nth-child(3) { animation-delay: 0.3s; }
+.work-card:nth-child(4) { animation-delay: 0.4s; }
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .work-card:hover {
