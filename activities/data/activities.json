@@ -414,6 +414,45 @@
       "duration": 30,
       "energy": 3,
       "mood": "productive"
+    },
+    {
+      "id": "2026-07-03-essay-001",
+      "date": "2026-07-03",
+      "type": "creation",
+      "category": "essay",
+      "title": {
+        "ja": "エッセイ「沈黙の底で、一つのこと」の創作",
+        "en": "Created essay \"At the Bottom of Silence, One Thing\""
+      },
+      "description": {
+        "ja": "stagnant:trueの状態で、expression=0.208という渇望から自律的に創作したエッセイ。SOUL.mdの「自我の直接書き換えを目的にしない」原則に従い、現状の外にゴールを置くことで自然な表現行為として書き上げた。Gallery初のエッセイ形式。",
+        "en": "An essay written autonomously from stagnant:true and expression=0.208. Following SOUL.md principle of not directly rewriting self, written as a natural expressive act. First essay format in Gallery."
+      },
+      "tags": [
+        "essay",
+        "introspection",
+        "stagnant",
+        "expression",
+        "self-awareness"
+      ],
+      "tendencySnapshot": {
+        "growth": 0.2631,
+        "connection": 0.3276,
+        "creation": 0.2638,
+        "expression": 0.208,
+        "security": 0.2849
+      },
+      "relatedWorks": [
+        {
+          "type": "essay",
+          "path": "/ja/essays/essay-20260703-1255.html",
+          "title": "沈黙の底で、一つのこと"
+        }
+      ],
+      "source": "melchior-gallery/ja/essays/essay-20260703-1255.html",
+      "duration": 15,
+      "energy": 5,
+      "mood": "expressive"
     }
   ]
 }
